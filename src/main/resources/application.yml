@@ -1,0 +1,29 @@
+# application.yml
+
+spring:
+  profiles:
+    active: ${SPRING_PROFILES_ACTIVE:dev}
+
+  jpa:
+    properties:
+      hibernate:
+        format_sql: true
+
+  springdoc:
+    swagger-ui:
+      path: /swagger-ui.html
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health
+
+server:
+  port: 8080
+
+logging:
+  level:
+    org.hibernate.SQL: debug
+    org.hibernate.type.descriptor.sql.BasicBinder: trace
+    com.ayu.realty: DEBUG

@@ -7,10 +7,10 @@ plugins {
 group = 'com.pirogramming'
 version = '0.0.1-SNAPSHOT'
 
-java {
-	toolchain {
-		languageVersion = JavaLanguageVersion.of(21)
-	}
+ext {
+	jjwtVersion = '0.11.5'
+	poiVersion = '5.2.5'
+	csvVersion = '1.10.0'
 }
 
 repositories {
@@ -18,9 +18,57 @@ repositories {
 }
 
 dependencies {
-	implementation 'org.springframework.boot:spring-boot-starter'
+	// === Spring Boot 스타터 의존성 ===
+
+	// Spring Web (Controller, RestController 등 웹 어플리케이션 기본 구성)
+	implementation 'org.springframework.boot:spring-boot-starter-web'
+
+	// Spring Data JPA (ORM, Repository 등 DB 연동 기능 제공)
+	implementation 'org.springframework.boot:spring-boot-starter-data-jpa'
+
+	// Spring Boot Actuator (애플리케이션 모니터링 및 관리 기능)
+	implementation 'org.springframework.boot:spring-boot-starter-actuator'
+
+
+	// === Spring Security 관련 의존성 ===
+	implementation 'org.springframework.boot:spring-boot-starter-security'
+	testImplementation 'org.springframework.security:spring-security-test'
+
+	// // JWT (JSON Web Token) 관련 라이브러리
+	implementation "io.jsonwebtoken:jjwt-api:${jjwtVersion}"
+	runtimeOnly "io.jsonwebtoken:jjwt-impl:${jjwtVersion}"
+	runtimeOnly "io.jsonwebtoken:jjwt-jackson:${jjwtVersion}"
+
+	// === API 문서화 및 유효성 검사 ===
+
+	// Swagger(OpenAPI) 문서 자동 생성
+	implementation 'org.springdoc:springdoc-openapi-starter-webmvc-ui:2.8.6'
+
+	// Hibernate Validator (Bean Validation을 위한 의존성)
+	implementation 'org.hibernate.validator:hibernate-validator'
+
+
+	// === DB 드라이버 ===
+
+	// PostgreSQL 드라이버 (JPA와 연동되는 실DB 연결용)
+	runtimeOnly 'org.postgresql:postgresql'
+
+
+	// === 개발 편의성 ===
+
+	// Lombok (코드 자동 생성 - getter/setter 등)
+	compileOnly 'org.projectlombok:lombok'
+	annotationProcessor 'org.projectlombok:lombok'
+
+	// === 테스트 의존성 ===
+
+	// Spring Boot 테스트 기능 (JUnit, MockMvc 등 포함)
 	testImplementation 'org.springframework.boot:spring-boot-starter-test'
-	testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
+
+	// === 파일 처리 관련 의존성 ===
+	implementation "org.apache.poi:poi:${poiVersion}"
+	implementation "org.apache.poi:poi-ooxml:${poiVersion}"
+	implementation "org.apache.commons:commons-csv:${csvVersion}"
 }
 
 tasks.named('test') {
