@@ -1,6 +1,8 @@
-.gradle/
-#build/
-.git/
+.git
+.gradle
+build
+out
+.idea
 *.iml
-.idea/
 *.log
+.env
