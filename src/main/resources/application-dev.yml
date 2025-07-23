@@ -1,0 +1,13 @@
+# application-dev.yml
+
+spring:
+  datasource:
+    url: jdbc:postgresql://db:5432/piro-recruit
+    driver-class-name: org.postgresql.Driver
+    username: ${DB_USERNAME}
+    password: ${DB_PASSWORD}
+
+  jpa:
+    hibernate:
+      ddl-auto: update
+    show-sql: true

@@ -1,0 +1,49 @@
+# application.yml
+
+spring:
+  profiles:
+    active: ${SPRING_PROFILES_ACTIVE:dev}
+
+  datasource:
+    url: jdbc:postgresql://localhost:5432/recruit_db
+    username: postgres
+    password: password
+    driver-class-name: org.postgresql.Driver
+
+  jpa:
+    hibernate:
+      ddl-auto: update # 테이블 자동 생성/업데이트 개발 단계에서는 update, 운영에서는 validate으로 하기
+    show-sql: true # SQL 쿼리 로깅
+    properties:
+      hibernate:
+        dialect: org.hibernate.dialect.PostgreSQLDialect
+        format_sql: true
+
+  data:
+    jpa:
+      repositories:
+        enabled: true
+
+  springdoc:
+    api-docs:
+      path: /api-docs
+    swagger-ui:
+      path: /swagger-ui.html
+      tags-sorter: alpha # API 문서화 개선 및 정렬 기능 추가
+      operations-sorter: alpha
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health
+
+server:
+  port: 8080
+
+logging:
+  level:
+    org.hibernate.SQL: debug
+    org.springframework.security: debug
+    org.hibernate.type.descriptor.sql.BasicBinder: trace
+    com.ayu.realty: DEBUG

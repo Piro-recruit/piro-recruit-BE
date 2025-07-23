@@ -1,0 +1,115 @@
+# ========================
+# IntelliJ / IDE 관련
+# ========================
+.idea/
+*.iml
+*.iws
+out/
+.idea_modules/
+.idea/**/workspace.xml
+.idea/**/tasks.xml
+.idea/**/usage.statistics.xml
+.idea/**/dictionaries
+.idea/**/shelf
+.idea/**/contentModel.xml
+.idea/**/dataSources*
+.idea/**/sqlDataSources.xml
+.idea/**/dynamic.xml
+.idea/**/uiDesigner.xml
+.idea/**/dbnavigator.xml
+.idea/**/mongoSettings.xml
+.idea/**/replstate.xml
+.idea/**/sonarlint/
+.idea/**/sonarIssues.xml
+.idea/**/markdown-navigator*
+.idea/codestream.xml
+.idea/httpRequests
+.idea/**/azureSettings.xml
+.idea/caches/build_file_checksums.ser
+
+# ========================
+# ☕ Java / Gradle 관련
+# ========================
+*.class
+*.log
+hs_err_pid*
+replay_pid*
+.gradle/
+.gradle-task-name-cache
+**/build/
+*.hprof
+gradle-app.setting
+.project
+.classpath
+!src/**/build/
+!gradle-wrapper.jar
+!gradle-wrapper.properties
+
+# ========================
+# 패키징 파일
+# ========================
+*.jar
+*.war
+*.nar
+*.ear
+*.zip
+*.tar.gz
+*.rar
+
+# ========================
+# Docker / Compose
+# ========================
+docker-compose.yml.lck
+docker-compose.override.yml
+docker-data/
+docker-volumes/
+docker-cache/
+logs/
+tmp/
+
+# ========================
+# 환경 변수 파일
+# ========================
+.env
+!.env.example
+
+# ========================
+# PostgreSQL 관련
+# ========================
+postgres-data/
+pgdata/
+*.pgpass
+*.pgsql
+*.sql
+
+# ========================
+# Redis 관련
+# ========================
+redis-data/
+redis/
+*.rdb
+*.aof
+*.log
+*.pid
+redis.conf
+
+# ========================
+# Git 충돌/백업 파일
+# ========================
+*.orig
+*.BACKUP.*
+*.BASE.*
+*.LOCAL.*
+*.REMOTE.*
+*_BACKUP_*.txt
+*_BASE_*.txt
+*_LOCAL_*.txt
+*_REMOTE_*.txt
+
+# ========================
+# Spring Boot 빌드 결과 제거
+# ========================
+/BOOT-INF/
+/META-INF/
+target/
+build/

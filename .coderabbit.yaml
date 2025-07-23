@@ -1,0 +1,18 @@
+# .coderabbit.yaml
+language: "ko-KR" # 코드레빗이 사용하는 언어를 한국어로 설정
+early_access: false # 코드레빗의 초기 기능(얼리 액세스) 사용 안함
+reviews:
+  profile: "chill" # 리뷰 성향을 '편안하게' 설정 (너무 깐깐하지 않게)
+  request_changes_workflow: true # 리뷰 후 변경 요청 워크플로우 활성화 (끝나면 PR 자동 승인)
+  high_level_summary: true # 리뷰에 고수준 요약 포함
+  poem: true # 리뷰에 시 형식 코멘트도 포함
+  review_status: true # 리뷰 상태 표시 활성화
+  collapse_walkthrough: false # 리뷰 과정 설명 펼침
+  auto_review:
+    enabled: true # 자동 리뷰 기능 활성화
+    drafts: false # 임시 리뷰(초안) 저장 안함
+  comment_style: "concise" # 코멘트 간결하게
+  suggest_improvements: true # 개선점 제안 활성화
+  highlight_severity: true # 문제점 심각도 강조
+  tone: "friendly" # 리뷰 톤을 친근하게
+  experimental_features: false # 실험적 기능 비활성화

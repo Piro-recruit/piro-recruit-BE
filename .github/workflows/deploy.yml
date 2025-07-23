@@ -1,0 +1,97 @@
+name: Blue-Green Deploy
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main ]
+
+env:
+  DOCKER_IMAGE: kimgyuill/recruit-backend
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Deploy to EC2
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.EC2_HOST }}
+          username: ubuntu
+          key: ${{ secrets.EC2_SSH_KEY }}
+          script: |
+            # DockerHub에서 최신 이미지 pull
+            sudo docker pull ${{ env.DOCKER_IMAGE }}:latest
+            
+            # Blue-Green 배포 스크립트 실행
+            cd /opt/app
+            
+            # 현재 실행 중인 컨테이너 확인
+            CURRENT_PORT=$(sudo docker ps --format "table {{.Names}}\t{{.Ports}}" | grep recruit-app | grep -o '8080\|8081' | head -1)
+            
+            if [ "$CURRENT_PORT" = "8080" ]; then
+              NEW_PORT="8081"
+              NEW_CONTAINER="piro-recruit-app-green"
+              OLD_CONTAINER="piro-recruit-app"
+            else
+              NEW_PORT="8080"
+              NEW_CONTAINER="piro-recruit-app-blue"  
+              OLD_CONTAINER="piro-recruit-app-green"
+            fi
+            
+            echo "Deploying to port $NEW_PORT"
+            
+            # Docker 네트워크 확인 및 생성
+            sudo docker network ls | grep app_backend || sudo docker network create app_backend
+            
+            # 기존 DB 컨테이너를 네트워크에 연결
+            sudo docker network connect app_backend piro-recruit-db 2>/dev/null || true
+            
+            # 새 컨테이너 실행
+            sudo docker run -d \
+              --name $NEW_CONTAINER \
+              --network app_backend \
+              -p $NEW_PORT:8080 \
+              -e SPRING_PROFILES_ACTIVE=${{ secrets.SPRING_PROFILES_ACTIVE }} \
+              -e DB_HOST=${{ secrets.DB_HOST }} \
+              -e DB_USERNAME=${{ secrets.DB_USERNAME }} \
+              -e DB_PASSWORD=${{ secrets.DB_PASSWORD }} \
+              --restart always \
+              ${{ env.DOCKER_IMAGE }}:latest
+            
+            # 헬스체크 (30초 대기)
+            echo "Waiting for new container to be ready..."
+            sleep 30
+            
+            # 헬스체크 수행
+            for i in {1..10}; do
+              if curl -f http://localhost:$NEW_PORT/actuator/health; then
+                echo "Health check passed!"
+            
+                # Nginx 업스트림 변경
+                sudo sed -i "s/server 127.0.0.1:[0-9]*/server 127.0.0.1:$NEW_PORT/" /etc/nginx/sites-available/blue-green
+                sudo nginx -t && sudo systemctl reload nginx
+            
+                # 이전 컨테이너 정리 (10초 후)
+                sleep 10
+                sudo docker stop $OLD_CONTAINER || true
+                sudo docker rm $OLD_CONTAINER || true
+            
+                echo "🎉 Blue-Green deployment completed successfully!"
+                echo "Current environment: $([ "$NEW_PORT" = "8080" ] && echo "Blue" || echo "Green")"
+                exit 0
+              else
+                echo "Health check failed, attempt $i/10"
+                sleep 10
+              fi
+            done
+            
+            # 헬스체크 실패 시 롤백
+            echo "Health check failed, rolling back..."
+            sudo docker stop $NEW_CONTAINER || true
+            sudo docker rm $NEW_CONTAINER || true
+            exit 1
