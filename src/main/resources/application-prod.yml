@@ -2,7 +2,7 @@
 
 spring:
   datasource:
-    url: jdbc:postgresql://piro-recruit-db:5432/piro-recruit
+    url: jdbc:postgresql://db:5432/piro-recruit
     driver-class-name: org.postgresql.Driver
     username: ${DB_USERNAME}
     password: ${DB_PASSWORD}
