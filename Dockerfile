@@ -17,7 +17,7 @@ COPY src ./src
 RUN gradle bootJar --no-daemon -x test
 
 # --- 2단계: 실행 스테이지 (최종 배포)
-FROM openjdk:21-jre-slim AS runtime
+FROM eclipse-temurin:21-jre AS runtime
 
 # 한국어 로케일 설정 및 curl 설치 (헬스체크용)
 RUN apt-get update && \
