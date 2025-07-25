@@ -202,14 +202,19 @@ pipeline {
                     while (retryCount < maxRetries && !healthCheckPassed) {
                         try {
                             sleep(15)
-                            def healthResponse = sh(
-                                script: """
-                                    ssh -o StrictHostKeyChecking=no ${APP_USER}@${APP_SERVER} '
-                                        curl -f -s http://localhost:${deployPort}/actuator/health 2>/dev/null || echo "NO_RESPONSE"
-                                    '
-                                """,
-                                returnStdout: true
-                            ).trim()
+                            def healthResponse = ""
+
+                            // sshagent 블록으로 SSH 인증 처리
+                            sshagent(['app-server-ssh']) {
+                                healthResponse = sh(
+                                    script: """
+                                        ssh -o StrictHostKeyChecking=no ${APP_USER}@${APP_SERVER} '
+                                            curl -f -s http://localhost:${deployPort}/actuator/health 2>/dev/null || echo "NO_RESPONSE"
+                                        '
+                                    """,
+                                    returnStdout: true
+                                ).trim()
+                            }
 
                             echo "📊 헬스체크 응답 (${retryCount + 1}/${maxRetries}): ${healthResponse}"
 
