@@ -42,11 +42,15 @@ gradle-app.setting
 .project
 .classpath
 !src/**/build/
-!gradle-wrapper.jar
-!gradle-wrapper.properties
+
+# Gradle Wrapper (중요: 항상 포함되어야 함)
+!gradle/wrapper/gradle-wrapper.jar
+!gradle/wrapper/gradle-wrapper.properties
+!gradlew
+!gradlew.bat
 
 # ========================
-# 패키징 파일
+# 패키징 파일 (Gradle Wrapper 제외)
 # ========================
 *.jar
 *.war
