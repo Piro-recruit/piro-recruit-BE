@@ -38,10 +38,10 @@ pipeline {
 
         stage('Test') {
             steps {
-                echo 'Skipping tests for now (Gradle wrapper issue)'
-                // 일시적으로 테스트 건너뛰기
+                echo 'Running tests with memory optimization...'
                 script {
-                    sh 'echo "Tests skipped due to Gradle wrapper issue"'
+                    // 메모리 최적화된 Gradle 실행
+                    sh './gradlew test --no-daemon --max-workers=1 -Dorg.gradle.jvmargs="-Xmx400m"'
                 }
             }
         }
@@ -51,7 +51,7 @@ pipeline {
                 echo 'Building Spring Boot application with memory optimization...'
                 script {
                     // 메모리 최적화된 빌드
-                    sh './gradlew clean bootJar --no-daemon -Xmx400m --max-workers=1 -x test'
+                    sh './gradlew clean bootJar --no-daemon --max-workers=1 -Dorg.gradle.jvmargs="-Xmx400m" -x test'
                 }
             }
         }
