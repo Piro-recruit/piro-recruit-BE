@@ -3,7 +3,7 @@ pipeline {
 
     environment {
         // Docker 이미지 정보
-        DOCKER_IMAGE = 'kimgyuill/recruit-backend'
+        DOCKER_IMAGE = 'kimgyuill/piro-recruiting'
         DOCKER_TAG = "${BUILD_NUMBER}"
         DOCKERHUB_CREDENTIALS = credentials('dockerhub-credentials')
 
@@ -73,13 +73,9 @@ pipeline {
 
         stage('Push to Docker Hub') {
             steps {
-                echo 'Pushing Docker image to Docker Hub...'
+                echo 'Skipping Docker Hub push for now - will deploy locally built image'
                 script {
-                    // Docker Hub에 로그인 후 이미지 푸시
-                    docker.withRegistry('https://registry.hub.docker.com', 'dockerhub-credentials') {
-                        sh "docker push ${DOCKER_IMAGE}:${DOCKER_TAG}"
-                        sh "docker push ${DOCKER_IMAGE}:latest"
-                    }
+                    sh 'echo "Image built successfully: ${DOCKER_IMAGE}:${DOCKER_TAG}"'
                 }
             }
         }
@@ -104,13 +100,18 @@ pipeline {
                     // 새 컨테이너 배포
                     sshagent(['app-server-ssh']) {
                         sh """
+                            # Docker 이미지를 App 서버로 전송
+                            docker save ${DOCKER_IMAGE}:${DOCKER_TAG} | gzip > /tmp/app-image.tar.gz
+                            scp -o StrictHostKeyChecking=no /tmp/app-image.tar.gz ${APP_USER}@${APP_SERVER}:/tmp/
+
                             ssh -o StrictHostKeyChecking=no ${APP_USER}@${APP_SERVER} '
                                 # 기존 컨테이너 중지 및 제거
                                 docker stop piro-recruiting-${newColor} || true
                                 docker rm piro-recruiting-${newColor} || true
 
-                                # 새 이미지 풀
-                                docker pull ${DOCKER_IMAGE}:${DOCKER_TAG}
+                                # 새 이미지 로드
+                                gunzip -c /tmp/app-image.tar.gz | docker load
+                                rm /tmp/app-image.tar.gz
 
                                 # 새 컨테이너 실행
                                 docker run -d \\
