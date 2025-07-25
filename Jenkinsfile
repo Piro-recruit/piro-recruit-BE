@@ -292,7 +292,7 @@ server {
     }
 
     location /deployment-status {
-        return 200 "Active: ${deployPort} (${deployColor}) - Build: ${DOCKER_TAG}\\nTime: \\\$(date)";
+        return 200 "Active: ${deployPort} (${deployColor}) - Build: ${DOCKER_TAG}";
         add_header Content-Type text/plain;
     }
 }
