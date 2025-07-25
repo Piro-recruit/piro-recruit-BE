@@ -156,7 +156,7 @@ pipeline {
                         sh """
                             ssh -o StrictHostKeyChecking=no ${APP_USER}@${APP_SERVER} '
                                 echo "📦 새 컨테이너 배포 시작..."
-
+                                
                                 # 혹시 모를 기존 컨테이너 정리
                                 docker stop piro-recruiting-${deployColor} 2>/dev/null || true
                                 docker rm piro-recruiting-${deployColor} 2>/dev/null || true
@@ -194,11 +194,11 @@ pipeline {
 
                     // 개선된 헬스체크
                     echo "🔍 헬스체크 시작 (${deployColor} 환경, 포트: ${deployPort})"
-
+                    
                     def healthCheckPassed = false
                     def maxRetries = 18  // 4.5분 대기 (15초 * 18)
                     def retryCount = 0
-
+                    
                     while (retryCount < maxRetries && !healthCheckPassed) {
                         try {
                             sleep(15)
@@ -206,13 +206,13 @@ pipeline {
                                 script: "curl -f -s http://${APP_SERVER}:${deployPort}/actuator/health 2>/dev/null || echo 'NO_RESPONSE'",
                                 returnStdout: true
                             ).trim()
-
+                            
                             echo "📊 헬스체크 응답 (${retryCount + 1}/${maxRetries}): ${healthResponse}"
-
+                            
                             // JSON 응답이 있으면 성공 (UP/DOWN 상관없이)
-                            if (healthResponse != 'NO_RESPONSE' &&
-                                (healthResponse.contains('"status"') ||
-                                 healthResponse.contains('UP') ||
+                            if (healthResponse != 'NO_RESPONSE' && 
+                                (healthResponse.contains('"status"') || 
+                                 healthResponse.contains('UP') || 
                                  healthResponse.contains('DOWN'))) {
                                 echo "✅ 헬스체크 성공! 애플리케이션이 응답 중"
                                 healthCheckPassed = true
@@ -224,7 +224,7 @@ pipeline {
                         }
                         retryCount++
                     }
-
+                    
                     if (!healthCheckPassed) {
                         // 디버깅 정보 수집
                         sshagent(['app-server-ssh']) {
@@ -235,8 +235,10 @@ pipeline {
                                     docker ps -a | grep piro-recruiting-${deployColor}
                                     echo "=== 컨테이너 로그 (최근 30줄) ==="
                                     docker logs --tail 30 piro-recruiting-${deployColor}
-                                    echo "=== 포트 확인 ==="
-                                    netstat -tulpn | grep ${deployPort}
+                                    echo "=== 로컬 헬스체크 테스트 ==="
+                                    curl -v http://localhost:${deployPort}/actuator/health || echo "로컬 헬스체크 실패"
+                                    echo "=== 컨테이너 내부 헬스체크 ==="
+                                    docker exec piro-recruiting-${deployColor} curl -s http://localhost:8080/actuator/health || echo "내부 헬스체크 실패"
                                 '
                             """
                         }
@@ -260,7 +262,7 @@ server {
         proxy_set_header X-Real-IP \\\$remote_addr;
         proxy_set_header X-Forwarded-For \\\$proxy_add_x_forwarded_for;
         proxy_set_header X-Forwarded-Proto \\\$scheme;
-
+        
         proxy_connect_timeout 10s;
         proxy_send_timeout 15s;
         proxy_read_timeout 15s;
@@ -301,7 +303,7 @@ EOF
                     ).trim()
 
                     echo "📊 배포 상태: ${finalCheck}"
-
+                    
                     def healthCheck = sh(
                         script: "curl -f -s http://${APP_SERVER}/actuator/health",
                         returnStatus: true
