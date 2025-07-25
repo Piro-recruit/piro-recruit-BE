@@ -15,7 +15,7 @@ pipeline {
         BLUE_PORT = '8081'
         GREEN_PORT = '8082'
 
-        // 데이터베이스 정보 (Spring Boot 표준으로 수정)
+        // 데이터베이스 정보
         DB_HOST = '34.64.113.7'
         DB_NAME = 'app_user'
         DB_USERNAME = credentials('DB_USERNAME')
@@ -50,7 +50,6 @@ pipeline {
             steps {
                 echo 'Building Spring Boot application with memory optimization...'
                 script {
-                    // Jenkins 메모리 최적화 빌드
                     sh './gradlew clean bootJar --no-daemon --max-workers=1 -Dorg.gradle.jvmargs="-Xmx512m -XX:+UseG1GC" -x test'
                 }
             }
@@ -60,7 +59,6 @@ pipeline {
             steps {
                 echo 'Building Docker image...'
                 script {
-                    // Docker 이미지 빌드
                     def image = docker.build("${DOCKER_IMAGE}:${DOCKER_TAG}")
                     sh "docker tag ${DOCKER_IMAGE}:${DOCKER_TAG} ${DOCKER_IMAGE}:latest"
                 }
@@ -71,7 +69,6 @@ pipeline {
             steps {
                 echo 'Pushing to Docker Hub...'
                 script {
-                    // Docker Hub에 푸시 (안정적인 배포를 위해 활성화)
                     docker.withRegistry('https://registry.hub.docker.com', 'dockerhub-credentials') {
                         def image = docker.image("${DOCKER_IMAGE}:${DOCKER_TAG}")
                         image.push()
@@ -86,59 +83,92 @@ pipeline {
             steps {
                 echo '🚀 Starting Blue-Green deployment...'
                 script {
-                    // 현재 실행 중인 컨테이너 확인
-                    def runningContainers = ""
+                    // 현재 실행 중인 컨테이너 상세 확인
+                    def containerInfo = ""
                     try {
                         sshagent(['app-server-ssh']) {
-                            runningContainers = sh(
+                            containerInfo = sh(
                                 script: """
                                     ssh -o StrictHostKeyChecking=no ${APP_USER}@${APP_SERVER} '
-                                        docker ps --format "{{.Names}}" | grep piro-recruiting || echo "none"
+                                        echo "=== 현재 실행 중인 컨테이너 상태 ==="
+                                        docker ps --format "table {{.Names}}\t{{.Status}}\t{{.Ports}}" | grep -E "(piro-recruiting|NAMES)" || echo "실행 중인 piro-recruiting 컨테이너 없음"
+                                        echo "=== 포트 사용 현황 ==="
+                                        netstat -tulpn | grep -E ":808[12]" || echo "8081, 8082 포트 사용 없음"
                                     '
                                 """,
                                 returnStdout: true
                             ).trim()
                         }
                     } catch (Exception e) {
-                        echo "컨테이너 확인 중 오류: ${e.message}"
-                        runningContainers = "none"
+                        echo "컨테이너 상태 확인 중 오류: ${e.message}"
+                        containerInfo = "확인 실패"
                     }
 
-                    echo "📋 현재 실행 중인 컨테이너: ${runningContainers}"
+                    echo "📋 서버 상태:"
+                    echo containerInfo
 
-                    // Blue/Green 결정 로직
-                    def newPort = BLUE_PORT
-                    def newColor = 'blue'
-                    def oldPort = GREEN_PORT
-                    def oldColor = 'green'
+                    // Blue/Green 결정 로직 (수정됨)
+                    def deployPort = ""
+                    def deployColor = ""
+                    def stopColor = ""
+                    def stopPort = ""
 
-                    if (runningContainers.contains('piro-recruiting-blue')) {
-                        newPort = GREEN_PORT
-                        newColor = 'green'
-                        oldPort = BLUE_PORT
-                        oldColor = 'blue'
+                    if (containerInfo.contains('piro-recruiting-blue') && containerInfo.contains(':8081->')) {
+                        // Blue가 8081에서 실행 중 → Green으로 배포
+                        deployPort = GREEN_PORT
+                        deployColor = 'green'
+                        stopColor = 'blue'
+                        stopPort = BLUE_PORT
+                    } else if (containerInfo.contains('piro-recruiting-green') && containerInfo.contains(':8082->')) {
+                        // Green이 8082에서 실행 중 → Blue로 배포
+                        deployPort = BLUE_PORT
+                        deployColor = 'blue'
+                        stopColor = 'green'
+                        stopPort = GREEN_PORT
+                    } else {
+                        // 아무것도 실행 중이 아님 → Blue로 시작
+                        deployPort = BLUE_PORT
+                        deployColor = 'blue'
+                        stopColor = 'none'
+                        stopPort = 'none'
                     }
 
-                    echo "🎯 배포 대상: ${newColor} 환경 (포트: ${newPort})"
+                    echo "🎯 배포 계획:"
+                    echo "   - 새 컨테이너: ${deployColor} (포트: ${deployPort})"
+                    echo "   - 정리 대상: ${stopColor} (포트: ${stopPort})"
+
+                    // 기존 컨테이너 정리 (배포 전)
+                    if (stopColor != 'none') {
+                        sshagent(['app-server-ssh']) {
+                            sh """
+                                ssh -o StrictHostKeyChecking=no ${APP_USER}@${APP_SERVER} '
+                                    echo "🧹 기존 컨테이너 정리 중..."
+                                    docker stop piro-recruiting-${stopColor} || true
+                                    docker rm piro-recruiting-${stopColor} || true
+                                    echo "✅ ${stopColor} 컨테이너 정리 완료"
+                                '
+                            """
+                        }
+                    }
 
                     // 새 컨테이너 배포
                     sshagent(['app-server-ssh']) {
                         sh """
                             ssh -o StrictHostKeyChecking=no ${APP_USER}@${APP_SERVER} '
-                                echo "📦 컨테이너 배포 시작..."
+                                echo "📦 새 컨테이너 배포 시작..."
 
-                                # 기존 컨테이너 정리
-                                docker stop piro-recruiting-${newColor} 2>/dev/null || true
-                                docker rm piro-recruiting-${newColor} 2>/dev/null || true
+                                # 혹시 모를 기존 컨테이너 정리
+                                docker stop piro-recruiting-${deployColor} 2>/dev/null || true
+                                docker rm piro-recruiting-${deployColor} 2>/dev/null || true
 
                                 # 최신 이미지 풀
                                 docker pull ${DOCKER_IMAGE}:${DOCKER_TAG}
 
-                                # 새 컨테이너 실행 (Spring Boot 표준 환경변수 사용)
+                                # 새 컨테이너 실행
                                 docker run -d \\
-                                    --name piro-recruiting-${newColor} \\
+                                    --name piro-recruiting-${deployColor} \\
                                     --restart unless-stopped \\
-                                    -p ${newPort}:8080 \\
+                                    -p ${deployPort}:8080 \\
                                     -e SPRING_DATASOURCE_URL=jdbc:postgresql://${DB_HOST}:5432/${DB_NAME} \\
                                     -e SPRING_DATASOURCE_USERNAME=${DB_USERNAME} \\
                                     -e SPRING_DATASOURCE_PASSWORD=${DB_PASSWORD} \\
@@ -149,27 +179,31 @@ pipeline {
                                     -e JAVA_OPTS="-Xmx256m -XX:+UseG1GC" \\
                                     ${DOCKER_IMAGE}:${DOCKER_TAG}
 
-                                echo "✅ 컨테이너 ${newColor} 시작됨 (포트: ${newPort})"
-
-                                # 컨테이너 상태 확인
-                                sleep 5
-                                docker ps | grep piro-recruiting-${newColor} || echo "⚠️ 컨테이너 상태 확인 필요"
+                                # 컨테이너 시작 확인
+                                sleep 10
+                                if docker ps | grep piro-recruiting-${deployColor}; then
+                                    echo "✅ 컨테이너 ${deployColor} 정상 시작 (포트: ${deployPort})"
+                                else
+                                    echo "❌ 컨테이너 시작 실패!"
+                                    docker logs piro-recruiting-${deployColor}
+                                    exit 1
+                                fi
                             '
                         """
                     }
 
-                    // 개선된 헬스체크 (DOWN 상태도 허용)
-                    echo "🔍 헬스체크 시작 (${newColor} 환경, 포트: ${newPort})"
+                    // 개선된 헬스체크
+                    echo "🔍 헬스체크 시작 (${deployColor} 환경, 포트: ${deployPort})"
 
                     def healthCheckPassed = false
-                    def maxRetries = 20  // 5분 대기 (15초 * 20)
+                    def maxRetries = 18  // 4.5분 대기 (15초 * 18)
                     def retryCount = 0
 
                     while (retryCount < maxRetries && !healthCheckPassed) {
                         try {
                             sleep(15)
                             def healthResponse = sh(
-                                script: "curl -f -s http://${APP_SERVER}:${newPort}/actuator/health 2>/dev/null || echo 'NO_RESPONSE'",
+                                script: "curl -f -s http://${APP_SERVER}:${deployPort}/actuator/health 2>/dev/null || echo 'NO_RESPONSE'",
                                 returnStdout: true
                             ).trim()
 
@@ -180,32 +214,36 @@ pipeline {
                                 (healthResponse.contains('"status"') ||
                                  healthResponse.contains('UP') ||
                                  healthResponse.contains('DOWN'))) {
-                                echo "✅ 헬스체크 성공! 애플리케이션이 응답하고 있습니다."
-                                echo "📈 응답 내용: ${healthResponse}"
+                                echo "✅ 헬스체크 성공! 애플리케이션이 응답 중"
                                 healthCheckPassed = true
                             } else {
-                                echo "⏳ 애플리케이션 시작 중... (${retryCount + 1}/${maxRetries})"
+                                echo "⏳ 애플리케이션 시작 중..."
                             }
                         } catch (Exception e) {
-                            echo "⏳ 헬스체크 대기 중... (${retryCount + 1}/${maxRetries}): ${e.message}"
+                            echo "⏳ 헬스체크 대기 중... (${retryCount + 1}/${maxRetries})"
                         }
                         retryCount++
                     }
 
                     if (!healthCheckPassed) {
-                        // 컨테이너 로그 확인
+                        // 디버깅 정보 수집
                         sshagent(['app-server-ssh']) {
                             sh """
                                 ssh -o StrictHostKeyChecking=no ${APP_USER}@${APP_SERVER} '
-                                    echo "🔍 컨테이너 로그 확인:"
-                                    docker logs --tail 20 piro-recruiting-${newColor}
+                                    echo "🔍 디버깅 정보:"
+                                    echo "=== 컨테이너 상태 ==="
+                                    docker ps -a | grep piro-recruiting-${deployColor}
+                                    echo "=== 컨테이너 로그 (최근 30줄) ==="
+                                    docker logs --tail 30 piro-recruiting-${deployColor}
+                                    echo "=== 포트 확인 ==="
+                                    netstat -tulpn | grep ${deployPort}
                                 '
                             """
                         }
-                        error "❌ 헬스체크 실패: ${maxRetries}번 시도 후에도 애플리케이션이 응답하지 않습니다."
+                        error "❌ 헬스체크 실패: ${maxRetries}번 시도 후에도 응답 없음"
                     }
 
-                    // Nginx 트래픽 전환
+                    // Nginx 설정 업데이트
                     echo "🔄 Nginx 트래픽 전환 중..."
                     sshagent(['app-server-ssh']) {
                         sh """
@@ -216,70 +254,39 @@ server {
     listen 80;
     server_name _;
 
-    # 메인 애플리케이션
     location / {
-        proxy_pass http://localhost:${newPort};
+        proxy_pass http://localhost:${deployPort};
         proxy_set_header Host \\\$host;
         proxy_set_header X-Real-IP \\\$remote_addr;
         proxy_set_header X-Forwarded-For \\\$proxy_add_x_forwarded_for;
         proxy_set_header X-Forwarded-Proto \\\$scheme;
 
-        # 타임아웃 설정
         proxy_connect_timeout 10s;
         proxy_send_timeout 15s;
         proxy_read_timeout 15s;
     }
 
-    # 헬스체크 엔드포인트
-    location /actuator/health {
-        proxy_pass http://localhost:${newPort}/actuator/health;
-        proxy_set_header Host \\\$host;
-    }
-
-    # 배포 상태 확인용
     location /deployment-status {
-        return 200 "Active: ${newPort} (${newColor}) - Build: ${DOCKER_TAG}";
+        return 200 "Active: ${deployPort} (${deployColor}) - Build: ${DOCKER_TAG}\\nTime: \\\$(date)";
         add_header Content-Type text/plain;
     }
 }
 EOF
 
-                                # Nginx 설정 테스트 및 재시작
+                                # Nginx 재시작
                                 if sudo nginx -t; then
                                     sudo systemctl reload nginx
-                                    echo "✅ Nginx 설정 업데이트 완료"
+                                    echo "✅ Nginx 트래픽 전환 완료: ${deployColor} (${deployPort})"
                                 else
                                     echo "❌ Nginx 설정 오류"
                                     exit 1
                                 fi
-
-                                echo "🎯 트래픽이 포트 ${newPort} (${newColor})로 전환되었습니다."
                             '
                         """
                     }
 
-                    // 이전 버전 정리 (30초 대기 후)
-                    if (runningContainers != "none" && runningContainers.contains('piro-recruiting-')) {
-                        echo "⏰ 30초 후 이전 컨테이너 정리..."
-                        sleep(30)
-
-                        sshagent(['app-server-ssh']) {
-                            sh """
-                                ssh -o StrictHostKeyChecking=no ${APP_USER}@${APP_SERVER} '
-                                    echo "🧹 이전 컨테이너 ${oldColor} 정리 중..."
-                                    docker stop piro-recruiting-${oldColor} 2>/dev/null || true
-                                    docker rm piro-recruiting-${oldColor} 2>/dev/null || true
-
-                                    # 사용하지 않는 이미지 정리
-                                    docker image prune -f
-
-                                    echo "✅ 정리 완료"
-                                '
-                            """
-                        }
-                    }
-
                     echo "🎉 Blue-Green 배포 완료!"
+                    echo "🚀 활성 환경: ${deployColor} (포트: ${deployPort})"
                 }
             }
         }
@@ -288,25 +295,24 @@ EOF
             steps {
                 echo '🔍 최종 검증 수행 중...'
                 script {
-                    // Nginx를 통한 최종 접속 테스트
-                    def nginxCheck = sh(
-                        script: "curl -f -s http://${APP_SERVER}/actuator/health",
-                        returnStatus: true
-                    )
-
-                    def statusCheck = sh(
+                    def finalCheck = sh(
                         script: "curl -f -s http://${APP_SERVER}/deployment-status",
                         returnStdout: true
                     ).trim()
 
-                    if (nginxCheck == 0) {
+                    echo "📊 배포 상태: ${finalCheck}"
+
+                    def healthCheck = sh(
+                        script: "curl -f -s http://${APP_SERVER}/actuator/health",
+                        returnStatus: true
+                    )
+
+                    if (healthCheck == 0) {
                         echo "✅ 최종 검증 성공!"
-                        echo "📊 배포 상태: ${statusCheck}"
                         echo "🌐 서비스 URL: http://${APP_SERVER}"
-                        echo "💚 헬스체크 URL: http://${APP_SERVER}/actuator/health"
+                        echo "💚 헬스체크: http://${APP_SERVER}/actuator/health"
                     } else {
-                        echo "⚠️ Nginx를 통한 접속에 문제가 있을 수 있습니다."
-                        echo "🔗 직접 접속 테스트: http://${APP_SERVER}:8081 또는 8082"
+                        echo "⚠️ 헬스체크에 문제가 있지만 서비스는 실행 중일 수 있습니다."
                     }
                 }
             }
@@ -316,7 +322,6 @@ EOF
     post {
         always {
             echo '🧹 워크스페이스 정리 중...'
-            // 로컬 Docker 이미지 정리 (Jenkins 메모리 절약)
             sh "docker rmi ${DOCKER_IMAGE}:${DOCKER_TAG} 2>/dev/null || true"
             sh "docker rmi ${DOCKER_IMAGE}:latest 2>/dev/null || true"
             sh "docker system prune -f"
@@ -325,16 +330,13 @@ EOF
 
         success {
             echo '🎉🎉🎉 Blue-Green 배포 성공! 🎉🎉🎉'
-            echo "🚀 애플리케이션 URL: http://${APP_SERVER}"
-            echo "📊 헬스체크: http://${APP_SERVER}/actuator/health"
-            echo "📈 배포 상태: http://${APP_SERVER}/deployment-status"
-            echo "🐳 Docker 이미지: ${DOCKER_IMAGE}:${DOCKER_TAG}"
+            echo "🚀 애플리케이션: http://${APP_SERVER}"
+            echo "📊 배포 상태: http://${APP_SERVER}/deployment-status"
         }
 
         failure {
             echo '❌ 배포 실패!'
-            echo "🔍 로그를 확인하여 문제를 파악하세요."
-            echo "🔧 필요시 수동 롤백: docker stop piro-recruiting-green && docker start piro-recruiting-blue"
+            echo "🔧 수동 확인: ssh ubuntu@${APP_SERVER} 'docker ps -a'"
         }
     }
 }
