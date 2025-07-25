@@ -85,10 +85,7 @@ pipeline {
                 echo 'Starting Blue-Green deployment...'
                 script {
                     // 현재 활성 포트 확인
-                    def activePort = sh(
-                        script: "ssh -o StrictHostKeyChecking=no ${APP_USER}@${APP_SERVER} 'curl -s http://localhost/health-check 2>/dev/null || echo 8080'",
-                        returnStdout: true
-                    ).trim()
+                    def activePort = "8080"  // 첫 배포이므로 기본값 사용
 
                     // 새로운 배포 포트 결정
                     def newPort = (activePort == '8080') ? GREEN_PORT : BLUE_PORT
@@ -101,10 +98,10 @@ pipeline {
                     sshagent(['app-server-ssh']) {
                         sh """
                             # Docker 이미지를 App 서버로 전송
-                            docker save ${DOCKER_IMAGE}:${DOCKER_TAG} | gzip > /tmp/app-image.tar.gz
-                            scp -o StrictHostKeyChecking=no /tmp/app-image.tar.gz ${APP_USER}@${APP_SERVER}:/tmp/
+                            docker save kimgyuill/piro-recruiting:${BUILD_NUMBER} | gzip > /tmp/app-image.tar.gz
+                            scp -o StrictHostKeyChecking=no /tmp/app-image.tar.gz ubuntu@34.64.41.136:/tmp/
 
-                            ssh -o StrictHostKeyChecking=no ${APP_USER}@${APP_SERVER} '
+                            ssh -o StrictHostKeyChecking=no ubuntu@34.64.41.136 '
                                 # 기존 컨테이너 중지 및 제거
                                 docker stop piro-recruiting-${newColor} || true
                                 docker rm piro-recruiting-${newColor} || true
@@ -118,11 +115,11 @@ pipeline {
                                     --name piro-recruiting-${newColor} \\
                                     --restart unless-stopped \\
                                     -p ${newPort}:8080 \\
-                                    -e DB_HOST=${DB_HOST} \\
+                                    -e DB_HOST=34.64.113.7 \\
                                     -e DB_USERNAME=postgres \\
                                     -e DB_PASSWORD=password \\
                                     -e SPRING_PROFILES_ACTIVE=prod \\
-                                    ${DOCKER_IMAGE}:${DOCKER_TAG}
+                                    kimgyuill/piro-recruiting:${BUILD_NUMBER}
 
                                 # 헬스체크 대기
                                 echo "Waiting for application to start..."
