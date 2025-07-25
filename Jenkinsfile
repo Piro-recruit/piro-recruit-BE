@@ -17,7 +17,7 @@ pipeline {
 
         // 데이터베이스 정보
         DB_HOST = '34.64.113.7'
-        DB_NAME = 'piro-recruit'
+        DB_NAME = 'app_user'
         DB_USERNAME = credentials('DB_USERNAME')
         DB_PASSWORD = credentials('DB_PASSWORD')
     }
@@ -116,7 +116,7 @@ pipeline {
                                     --restart unless-stopped \\
                                     -p ${newPort}:8080 \\
                                     -e DB_HOST=34.64.113.7 \\
-                                    -e DB_NAME=piro-recruit \\
+                                    -e DB_NAME=app_user \\
                                     -e DB_USERNAME=postgres \\
                                     -e DB_PASSWORD=${DB_PASSWORD} \\
                                     -e SPRING_PROFILES_ACTIVE=prod \\
