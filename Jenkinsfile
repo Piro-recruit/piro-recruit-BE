@@ -116,8 +116,9 @@ pipeline {
                                     --restart unless-stopped \\
                                     -p ${newPort}:8080 \\
                                     -e DB_HOST=34.64.113.7 \\
+                                    -e DB_NAME=piro-recruit \\
                                     -e DB_USERNAME=postgres \\
-                                    -e DB_PASSWORD=password \\
+                                    -e DB_PASSWORD=${DB_PASSWORD} \\
                                     -e SPRING_PROFILES_ACTIVE=prod \\
                                     kimgyuill/piro-recruiting:${BUILD_NUMBER}
 
