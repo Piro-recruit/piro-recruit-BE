@@ -46,7 +46,7 @@ dependencies {
 
 	// Hibernate Validator (Bean Validation을 위한 의존성)
 	implementation 'org.hibernate.validator:hibernate-validator'
-	implementation 'org.springframework.boot:spring-boot-starter-validation'
+
 
 	// === DB 드라이버 ===
 
@@ -64,7 +64,6 @@ dependencies {
 
 	// Spring Boot 테스트 기능 (JUnit, MockMvc 등 포함)
 	testImplementation 'org.springframework.boot:spring-boot-starter-test'
-	testImplementation 'org.springframework.security:spring-security-test'
 
 	// === 파일 처리 관련 의존성 ===
 	implementation "org.apache.poi:poi:${poiVersion}"
