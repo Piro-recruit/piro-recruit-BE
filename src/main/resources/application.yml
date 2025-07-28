@@ -6,9 +6,9 @@ spring:
 
   # PostgreSQL 데이터베이스 연결 설정
   datasource:
-    url: jdbc:postgresql://localhost:5432/recruit_db
-    username: postgres
-    password: password
+    url: jdbc:postgresql://${DB_HOST:db}:${DB_PORT:5432}/${DB_NAME:piro-recruit}
+    username: ${DB_USERNAME:postgres}
+    password: ${DB_PASSWORD:password}
     driver-class-name: org.postgresql.Driver
 
   jpa:
