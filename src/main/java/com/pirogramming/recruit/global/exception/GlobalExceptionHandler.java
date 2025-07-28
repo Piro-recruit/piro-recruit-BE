@@ -1,4 +1,4 @@
-package com.pirogramming.Recruit.global.exception;
+package com.pirogramming.recruit.global.exception;
 
 import java.util.stream.Collectors;
 
