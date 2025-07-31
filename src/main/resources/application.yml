@@ -27,3 +27,6 @@ logging:
     org.hibernate.SQL: debug
     org.hibernate.type.descriptor.sql.BasicBinder: trace
     com.ayu.realty: DEBUG
+
+jwt:
+  secret: my-jwt-secret-key
