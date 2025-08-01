@@ -81,7 +81,7 @@ public class WebhookApplicationService {
 
     // 전체 지원서 목록 조회
     public List<WebhookApplicationResponse> getAllApplications() {
-        return webhookApplicationRepository.findAllOrderBySubmissionTimeDesc()
+        return webhookApplicationRepository.findAllOrderByCreatedAtDesc()
                 .stream()
                 .map(WebhookApplicationResponse::from)
                 .collect(Collectors.toList());

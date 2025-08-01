@@ -36,7 +36,7 @@ public interface WebhookApplicationRepository extends JpaRepository<WebhookAppli
 
     // 최근 제출된 지원서 조회 (제출시간 기준 내림차순)
     @Query("SELECT w FROM WebhookApplication w ORDER BY w.createdAt DESC")
-    List<WebhookApplication> findAllOrderBySubmissionTimeDesc();
+    List<WebhookApplication> findAllOrderByCreatedAtDesc();
 
     // 이름과 이메일로 지원서 존재 확인
     boolean existsByNameAndEmail(String name, String email);
