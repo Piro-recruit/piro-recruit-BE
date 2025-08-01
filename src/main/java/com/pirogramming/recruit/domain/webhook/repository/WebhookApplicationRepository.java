@@ -13,13 +13,19 @@ import java.util.Optional;
 public interface WebhookApplicationRepository extends JpaRepository<WebhookApplication, Long> {
 
     // 이메일로 지원서 조회
-    Optional<WebhookApplication> findByEmail(String email);
+    Optional<WebhookApplication> findByApplicantEmail(String applicantEmail);
 
     // 구글 폼 응답 ID로 중복 체크
     boolean existsByFormResponseId(String formResponseId);
 
-    //이메일 존재 여부 확인
-    boolean existsByEmail(String email);
+    // 이메일 존재 여부 확인
+    boolean existsByApplicantEmail(String applicantEmail);
+
+    // 리크루팅별 지원서 조회
+    List<WebhookApplication> findByRecruitmentId(Long recruitmentId);
+
+    // 리크루팅별 + 상태별 지원서 조회
+    List<WebhookApplication> findByRecruitmentIdAndStatus(Long recruitmentId, WebhookApplication.ProcessingStatus status);
 
     // 처리 상태별 조회
     List<WebhookApplication> findByStatus(WebhookApplication.ProcessingStatus status);
@@ -28,16 +34,22 @@ public interface WebhookApplicationRepository extends JpaRepository<WebhookAppli
     @Query("SELECT COUNT(w) FROM WebhookApplication w WHERE w.status = :status")
     long countByStatus(@Param("status") WebhookApplication.ProcessingStatus status);
 
+    // 리크루팅별 지원서 개수 조회
+    long countByRecruitmentId(Long recruitmentId);
 
     // 처리 대기 중인 지원서 개수
     default long countPendingApplications() {
         return countByStatus(WebhookApplication.ProcessingStatus.PENDING);
     }
 
-    // 최근 제출된 지원서 조회 (제출시간 기준 내림차순)
+    // 최근 제출된 지원서 조회 (생성시간 기준 내림차순)
     @Query("SELECT w FROM WebhookApplication w ORDER BY w.createdAt DESC")
     List<WebhookApplication> findAllOrderByCreatedAtDesc();
 
-    // 이름과 이메일로 지원서 존재 확인
-    boolean existsByNameAndEmail(String name, String email);
+    // 리크루팅별 최근 지원서 조회
+    @Query("SELECT w FROM WebhookApplication w WHERE w.recruitment.id = :recruitmentId ORDER BY w.createdAt DESC")
+    List<WebhookApplication> findByRecruitmentIdOrderByCreatedAtDesc(@Param("recruitmentId") Long recruitmentId);
+
+    // 이름과 이메일로 지원서 존재 확인 (리크루팅별)
+    boolean existsByRecruitmentIdAndApplicantNameAndApplicantEmail(Long recruitmentId, String applicantName, String applicantEmail);
 }
