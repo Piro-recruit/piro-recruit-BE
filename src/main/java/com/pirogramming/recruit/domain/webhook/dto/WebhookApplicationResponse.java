@@ -7,6 +7,7 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 
 import java.time.LocalDateTime;
+import java.util.Map;
 
 @Getter
 @NoArgsConstructor
@@ -15,18 +16,24 @@ import java.time.LocalDateTime;
 public class WebhookApplicationResponse {
 
     private Long id;
-    private String name;
-    private String email;
-    private String phone;
-    private String school;
-    private String major;
-    private String portfolioUrl;
-    private String introduction;
-    private String motivation;
+    private Long recruitmentId;
+    private String recruitmentTitle;
+    private String applicantName;
+    private String applicantEmail;
     private String formResponseId;
     private String submissionTimestamp;
+
+    // 유연한 폼 데이터
+    private Map<String, Object> formData;
+
+    // 처리 상태
     private String status;
     private String errorMessage;
+
+    // AI 분석 결과
+    private Map<String, Object> aiAnalysis;
+
+    // 메타데이터
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
 
@@ -34,20 +41,34 @@ public class WebhookApplicationResponse {
     public static WebhookApplicationResponse from(WebhookApplication entity) {
         return WebhookApplicationResponse.builder()
                 .id(entity.getId())
-                .name(entity.getName())
-                .email(entity.getEmail())
-                .phone(entity.getPhone())
-                .school(entity.getSchool())
-                .major(entity.getMajor())
-                .portfolioUrl(entity.getPortfolioUrl())
-                .introduction(entity.getIntroduction())
-                .motivation(entity.getMotivation())
+                .recruitmentId(entity.getRecruitment().getId())
+                .recruitmentTitle(entity.getRecruitment().getTitle())
+                .applicantName(entity.getApplicantName())
+                .applicantEmail(entity.getApplicantEmail())
                 .formResponseId(entity.getFormResponseId())
                 .submissionTimestamp(entity.getSubmissionTimestamp())
+                .formData(entity.getFormData())
                 .status(entity.getStatus().name())
                 .errorMessage(entity.getErrorMessage())
+                .aiAnalysis(entity.getAiAnalysis())
                 .createdAt(entity.getCreatedAt())
                 .updatedAt(entity.getUpdatedAt())
                 .build();
+    }
+
+    // 특정 폼 데이터 값 조회 편의 메서드
+    public Object getFormValue(String key) {
+        return formData != null ? formData.get(key) : null;
+    }
+
+    // 특정 폼 데이터를 문자열로 조회
+    public String getFormValueAsString(String key) {
+        Object value = getFormValue(key);
+        return value != null ? value.toString() : null;
+    }
+
+    // AI 분석 결과 조회 편의 메서드
+    public Object getAiAnalysisValue(String key) {
+        return aiAnalysis != null ? aiAnalysis.get(key) : null;
     }
 }
