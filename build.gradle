@@ -7,6 +7,12 @@ plugins {
 group = 'com.pirogramming'
 version = '0.0.1-SNAPSHOT'
 
+java {
+	toolchain {
+		languageVersion = JavaLanguageVersion.of(17)
+	}
+}
+
 ext {
 	jjwtVersion = '0.11.5'
 	poiVersion = '5.2.5'
@@ -22,6 +28,7 @@ dependencies {
 
 	// Spring Web (Controller, RestController 등 웹 어플리케이션 기본 구성)
 	implementation 'org.springframework.boot:spring-boot-starter-web'
+	implementation 'org.springframework.boot:spring-boot-starter-webflux'
 
 	// Spring Data JPA (ORM, Repository 등 DB 연동 기능 제공)
 	implementation 'org.springframework.boot:spring-boot-starter-data-jpa'
