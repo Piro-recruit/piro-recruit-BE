@@ -27,3 +27,7 @@ logging:
     org.hibernate.SQL: debug
     org.hibernate.type.descriptor.sql.BasicBinder: trace
     com.ayu.realty: DEBUG
+
+openai:
+  api:
+    key: ${OPENAI_API_KEY}
