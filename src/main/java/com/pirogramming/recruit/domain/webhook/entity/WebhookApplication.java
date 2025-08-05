@@ -1,6 +1,6 @@
 package com.pirogramming.recruit.domain.webhook.entity;
 
-import com.pirogramming.recruit.domain.recruitment.entity.Recruitment;
+import com.pirogramming.recruit.domain.googleform.entity.GoogleForm;
 import com.pirogramming.recruit.global.entity.BaseTimeEntity;
 import jakarta.persistence.*;
 import lombok.AccessLevel;
@@ -21,10 +21,10 @@ public class WebhookApplication extends BaseTimeEntity {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    // 🔗 리크루팅과 연관관계
+    // 리크루팅과 연관관계
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "recruitment_id", nullable = false)
-    private Recruitment recruitment; // 몇 기 리쿠르팅인지
+    @JoinColumn(name = "google_form_id", nullable = false)
+    private GoogleForm googleForm; // 몇 기 리쿠르팅인지
 
     // 고정 필드들 (필수 정보)
     @Column(nullable = false)
@@ -58,10 +58,9 @@ public class WebhookApplication extends BaseTimeEntity {
     private Map<String, Object> aiAnalysis;
 
     @Builder
-    public WebhookApplication(Recruitment recruitment,
-                              String applicantName, String applicantEmail, String formResponseId,
-                              String submissionTimestamp, Map<String, Object> formData) {
-        this.recruitment = recruitment;
+    public WebhookApplication(GoogleForm googleForm, String applicantName, String applicantEmail,
+                              String formResponseId, String submissionTimestamp, Map<String, Object> formData) {
+        this.googleForm = googleForm;
         this.applicantName = applicantName;
         this.applicantEmail = applicantEmail;
         this.formResponseId = formResponseId;
