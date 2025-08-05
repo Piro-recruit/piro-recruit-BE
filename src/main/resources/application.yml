@@ -11,7 +11,7 @@ spring:
     data:
       jpa:
         repositories:
-          enabled: true # JPA Repository 자동 스캔 활성화
+          enabled: true # JPA Repository
 
   springdoc:
     swagger-ui:
@@ -36,3 +36,7 @@ logging:
     org.hibernate.type.descriptor.sql.BasicBinder: trace
     com.ayu.realty: debug
     org.springframework.security: debug
+
+openai:
+  api:
+    key: ${OPENAI_API_KEY}
