@@ -1,0 +1,278 @@
+package com.pirogramming.recruit.domain.googleform.controller;
+
+import com.pirogramming.recruit.domain.webhook.entity.WebhookApplication;
+import com.pirogramming.recruit.domain.webhook.service.WebhookApplicationService;
+import com.pirogramming.recruit.domain.googleform.dto.GoogleFormRequest;
+import com.pirogramming.recruit.domain.googleform.dto.GoogleFormResponse;
+import com.pirogramming.recruit.domain.googleform.entity.GoogleForm;
+import com.pirogramming.recruit.domain.googleform.service.GoogleFormService;
+import com.pirogramming.recruit.global.exception.ApiRes;
+import com.pirogramming.recruit.global.exception.code.ErrorCode;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.Parameter;
+import io.swagger.v3.oas.annotations.tags.Tag;
+import jakarta.validation.Valid;
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.*;
+
+import java.util.List;
+import java.util.Map;
+import java.util.stream.Collectors;
+
+@RestController
+@RequestMapping("/api/google-forms")
+@RequiredArgsConstructor
+@Slf4j
+@Tag(name = "GoogleForm", description = "구글 폼 관리 API")
+public class GoogleFormController {
+
+    private final GoogleFormService googleFormService;
+    private final WebhookApplicationService webhookApplicationService;
+
+    // 새 구글 폼 생성
+    @PostMapping
+    @Operation(summary = "새 구글 폼 생성", description = "새로운 구글 폼을 등록합니다.")
+    public ResponseEntity<ApiRes<GoogleFormResponse>> createGoogleForm(
+            @Valid @RequestBody GoogleFormRequest request) {
+
+        log.info("새 구글 폼 생성 요청 - 제목: {}, 폼ID: {}", request.getTitle(), request.getFormId());
+
+        GoogleForm googleForm = googleFormService.createGoogleForm(request.toEntity());
+        GoogleFormResponse response = GoogleFormResponse.from(googleForm);
+
+        return ResponseEntity.status(HttpStatus.CREATED)
+                .body(ApiRes.success(response, "구글 폼이 성공적으로 생성되었습니다."));
+    }
+
+    // 전체 구글 폼 목록 조회
+    @GetMapping
+    @Operation(summary = "전체 구글 폼 조회", description = "모든 구글 폼을 최신순으로 조회합니다.")
+    public ResponseEntity<ApiRes<List<GoogleFormResponse>>> getAllGoogleForms(
+            @Parameter(description = "지원서 개수 포함 여부") @RequestParam(defaultValue = "false") boolean includeApplicationCount) {
+
+        List<GoogleForm> googleForms = googleFormService.getAllGoogleForms();
+
+        List<GoogleFormResponse> responses;
+        if (includeApplicationCount) {
+            responses = googleForms.stream()
+                    .map(googleForm -> {
+                        long count = webhookApplicationService.getApplicationCountByGoogleForm(googleForm.getId());
+                        return GoogleFormResponse.fromWithApplicationCount(googleForm, count);
+                    })
+                    .collect(Collectors.toList());
+        } else {
+            responses = googleForms.stream()
+                    .map(GoogleFormResponse::from)
+                    .collect(Collectors.toList());
+        }
+
+        return ResponseEntity.ok(
+                ApiRes.success(responses, responses.size() + "개의 구글 폼을 조회했습니다.")
+        );
+    }
+
+    // 특정 구글 폼 조회 (ID 기준)
+    @GetMapping("/{id}")
+    @Operation(summary = "특정 구글 폼 조회", description = "ID를 기준으로 특정 구글 폼을 조회합니다.")
+    public ResponseEntity<ApiRes<GoogleFormResponse>> getGoogleFormById(
+            @Parameter(description = "구글 폼 ID") @PathVariable Long id,
+            @Parameter(description = "지원서 개수 포함 여부") @RequestParam(defaultValue = "true") boolean includeApplicationCount) {
+
+        return googleFormService.getGoogleFormById(id)
+                .map(googleForm -> {
+                    GoogleFormResponse response;
+                    if (includeApplicationCount) {
+                        long count = webhookApplicationService.getApplicationCountByGoogleForm(googleForm.getId());
+                        response = GoogleFormResponse.fromWithApplicationCount(googleForm, count);
+                    } else {
+                        response = GoogleFormResponse.from(googleForm);
+                    }
+                    return ResponseEntity.ok(ApiRes.success(response));
+                })
+                .orElse(ResponseEntity.status(HttpStatus.NOT_FOUND)
+                        .body(ApiRes.failure(HttpStatus.NOT_FOUND, ErrorCode.NOT_FOUND)));
+    }
+
+    // 폼 ID로 구글 폼 조회
+    @GetMapping("/form-id/{formId}")
+    @Operation(summary = "폼 ID로 구글 폼 조회", description = "구글 폼 ID를 기준으로 구글 폼을 조회합니다.")
+    public ResponseEntity<ApiRes<GoogleFormResponse>> getGoogleFormByFormId(
+            @Parameter(description = "구글 폼 ID") @PathVariable String formId,
+            @Parameter(description = "지원서 개수 포함 여부") @RequestParam(defaultValue = "true") boolean includeApplicationCount) {
+
+        return googleFormService.getGoogleFormByFormId(formId)
+                .map(googleForm -> {
+                    GoogleFormResponse response;
+                    if (includeApplicationCount) {
+                        long count = webhookApplicationService.getApplicationCountByGoogleForm(googleForm.getId());
+                        response = GoogleFormResponse.fromWithApplicationCount(googleForm, count);
+                    } else {
+                        response = GoogleFormResponse.from(googleForm);
+                    }
+                    return ResponseEntity.ok(ApiRes.success(response));
+                })
+                .orElse(ResponseEntity.status(HttpStatus.NOT_FOUND)
+                        .body(ApiRes.failure(HttpStatus.NOT_FOUND, ErrorCode.NOT_FOUND)));
+    }
+
+    // 현재 활성화된 구글 폼 조회
+    @GetMapping("/active")
+    @Operation(summary = "현재 활성화된 구글 폼 조회", description = "현재 활성화된 구글 폼을 조회합니다.")
+    public ResponseEntity<ApiRes<GoogleFormResponse>> getActiveGoogleForm() {
+
+        return googleFormService.getActiveGoogleForm()
+                .map(googleForm -> {
+                    long count = webhookApplicationService.getApplicationCountByGoogleForm(googleForm.getId());
+                    GoogleFormResponse response = GoogleFormResponse.fromWithApplicationCount(googleForm, count);
+                    return ResponseEntity.ok(ApiRes.success(response));
+                })
+                .orElse(ResponseEntity.status(HttpStatus.NOT_FOUND)
+                        .body(ApiRes.failure(HttpStatus.NOT_FOUND, ErrorCode.NOT_FOUND)));
+    }
+
+    // 활성화된 구글 폼들 조회
+    @GetMapping("/active-forms")
+    @Operation(summary = "활성화된 구글 폼들 조회", description = "활성화된 모든 구글 폼을 조회합니다.")
+    public ResponseEntity<ApiRes<List<GoogleFormResponse>>> getActiveGoogleForms() {
+
+        List<GoogleForm> googleForms = googleFormService.getActiveGoogleForms();
+        List<GoogleFormResponse> responses = googleForms.stream()
+                .map(googleForm -> {
+                    long count = webhookApplicationService.getApplicationCountByGoogleForm(googleForm.getId());
+                    return GoogleFormResponse.fromWithApplicationCount(googleForm, count);
+                })
+                .collect(Collectors.toList());
+
+        return ResponseEntity.ok(
+                ApiRes.success(responses, "활성화된 구글 폼 " + responses.size() + "개를 조회했습니다.")
+        );
+    }
+
+    // 구글 폼 활성화
+    @PutMapping("/{id}/activate")
+    @Operation(summary = "구글 폼 활성화", description = "특정 구글 폼을 활성화합니다. (기존 활성화된 것은 비활성화)")
+    public ResponseEntity<ApiRes<GoogleFormResponse>> activateGoogleForm(
+            @Parameter(description = "구글 폼 ID") @PathVariable Long id) {
+
+        log.info("구글 폼 활성화 요청 - ID: {}", id);
+
+        GoogleForm googleForm = googleFormService.activateGoogleForm(id);
+        long count = webhookApplicationService.getApplicationCountByGoogleForm(googleForm.getId());
+        GoogleFormResponse response = GoogleFormResponse.fromWithApplicationCount(googleForm, count);
+
+        return ResponseEntity.ok(
+                ApiRes.success(response, "구글 폼이 활성화되었습니다.")
+        );
+    }
+
+    // 구글 폼 비활성화
+    @PutMapping("/{id}/deactivate")
+    @Operation(summary = "구글 폼 비활성화", description = "특정 구글 폼을 비활성화합니다.")
+    public ResponseEntity<ApiRes<GoogleFormResponse>> deactivateGoogleForm(
+            @Parameter(description = "구글 폼 ID") @PathVariable Long id) {
+
+        log.info("구글 폼 비활성화 요청 - ID: {}", id);
+
+        GoogleForm googleForm = googleFormService.deactivateGoogleForm(id);
+        long count = webhookApplicationService.getApplicationCountByGoogleForm(googleForm.getId());
+        GoogleFormResponse response = GoogleFormResponse.fromWithApplicationCount(googleForm, count);
+
+        return ResponseEntity.ok(
+                ApiRes.success(response, "구글 폼이 비활성화되었습니다.")
+        );
+    }
+
+    // 구글 폼 URL 업데이트
+    @PutMapping("/{id}/form-url")
+    @Operation(summary = "구글 폼 URL 업데이트", description = "구글 폼의 URL을 업데이트합니다.")
+    public ResponseEntity<ApiRes<GoogleFormResponse>> updateGoogleFormUrl(
+            @Parameter(description = "구글 폼 ID") @PathVariable Long id,
+            @RequestBody Map<String, String> request) {
+
+        String newUrl = request.get("formUrl");
+        if (newUrl == null || newUrl.trim().isEmpty()) {
+            return ResponseEntity.badRequest()
+                    .body(ApiRes.failure(HttpStatus.BAD_REQUEST, ErrorCode.INVALID_ARGUMENT));
+        }
+
+        log.info("구글 폼 URL 업데이트 요청 - ID: {}, URL: {}", id, newUrl);
+
+        GoogleForm googleForm = googleFormService.updateGoogleFormUrl(id, newUrl);
+        GoogleFormResponse response = GoogleFormResponse.from(googleForm);
+
+        return ResponseEntity.ok(
+                ApiRes.success(response, "구글 폼 URL이 업데이트되었습니다.")
+        );
+    }
+
+    // 구글 시트 URL 업데이트
+    @PutMapping("/{id}/sheet-url")
+    @Operation(summary = "구글 시트 URL 업데이트", description = "구글 시트의 URL을 업데이트합니다.")
+    public ResponseEntity<ApiRes<GoogleFormResponse>> updateGoogleSheetUrl(
+            @Parameter(description = "구글 폼 ID") @PathVariable Long id,
+            @RequestBody Map<String, String> request) {
+
+        String newUrl = request.get("sheetUrl");
+        if (newUrl == null || newUrl.trim().isEmpty()) {
+            return ResponseEntity.badRequest()
+                    .body(ApiRes.failure(HttpStatus.BAD_REQUEST, ErrorCode.INVALID_ARGUMENT));
+        }
+
+        log.info("구글 시트 URL 업데이트 요청 - ID: {}, URL: {}", id, newUrl);
+
+        GoogleForm googleForm = googleFormService.updateGoogleSheetUrl(id, newUrl);
+        GoogleFormResponse response = GoogleFormResponse.from(googleForm);
+
+        return ResponseEntity.ok(
+                ApiRes.success(response, "구글 시트 URL이 업데이트되었습니다.")
+        );
+    }
+
+    // 구글 폼 통계 정보 조회
+    @GetMapping("/{id}/statistics")
+    @Operation(summary = "구글 폼 통계 정보", description = "특정 구글 폼의 상세 통계 정보를 조회합니다.")
+    public ResponseEntity<ApiRes<Map<String, Object>>> getGoogleFormStatistics(
+            @Parameter(description = "구글 폼 ID") @PathVariable Long id) {
+
+        // 구글 폼 존재 확인
+        GoogleForm googleForm = googleFormService.getGoogleFormByIdRequired(id);
+
+        // 통계 정보 수집
+        long totalApplications = webhookApplicationService.getApplicationCountByGoogleForm(id);
+        Map<WebhookApplication.ProcessingStatus, Long> statusStatistics =
+                webhookApplicationService.getStatusStatisticsByGoogleForm(id);
+
+        Map<String, Object> statistics = Map.of(
+                "googleFormId", id,
+                "formId", googleForm.getFormId(),
+                "formTitle", googleForm.getTitle(),
+                "totalApplications", totalApplications,
+                "statusStatistics", statusStatistics,
+                "isActive", googleForm.getIsActive(),
+                "createdAt", googleForm.getCreatedAt()
+        );
+
+        return ResponseEntity.ok(
+                ApiRes.success(statistics, "구글 폼 통계 정보를 조회했습니다.")
+        );
+    }
+
+    // 제목으로 구글 폼 검색
+    @GetMapping("/search")
+    @Operation(summary = "제목으로 구글 폼 검색", description = "제목을 기준으로 구글 폼을 검색합니다.")
+    public ResponseEntity<ApiRes<List<GoogleFormResponse>>> searchGoogleFormsByTitle(
+            @Parameter(description = "검색할 제목") @RequestParam String title) {
+
+        List<GoogleForm> googleForms = googleFormService.searchGoogleFormsByTitle(title);
+        List<GoogleFormResponse> responses = googleForms.stream()
+                .map(GoogleFormResponse::from)
+                .collect(Collectors.toList());
+
+        return ResponseEntity.ok(
+                ApiRes.success(responses, "'" + title + "'로 검색된 구글 폼 " + responses.size() + "개를 조회했습니다.")
+        );
+    }
+}

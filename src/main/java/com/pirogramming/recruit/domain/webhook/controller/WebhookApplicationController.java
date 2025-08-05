@@ -34,8 +34,8 @@ public class WebhookApplicationController {
     public ResponseEntity<ApiRes<WebhookApplicationResponse>> receiveWebhookApplication(
             @Valid @RequestBody WebhookApplicationRequest request) {
 
-        log.info("웹훅 지원서 수신 - 리크루팅ID: {}, 이메일: {}, 이름: {}",
-                request.getRecruitmentId(), request.getApplicantEmail(), request.getApplicantName());
+        log.info("웹훅 지원서 수신 - 폼ID: {}, 이메일: {}, 이름: {}",
+                request.getFormId(), request.getApplicantEmail(), request.getApplicantName());
 
         WebhookApplicationResponse response = webhookApplicationService.processWebhookApplication(request);
 
@@ -55,16 +55,29 @@ public class WebhookApplicationController {
         );
     }
 
-    // 리크루팅별 지원서 목록 조회
-    @GetMapping("/recruitment/{recruitmentId}")
-    @Operation(summary = "리크루팅별 지원서 조회", description = "특정 리크루팅의 모든 지원서를 조회합니다.")
-    public ResponseEntity<ApiRes<List<WebhookApplicationResponse>>> getApplicationsByRecruitment(
-            @Parameter(description = "리크루팅 ID") @PathVariable Long recruitmentId) {
+    // 구글 폼별 지원서 목록 조회 (구글 폼 ID)
+    @GetMapping("/google-form/{googleFormId}")
+    @Operation(summary = "구글 폼별 지원서 조회", description = "특정 구글 폼의 모든 지원서를 조회합니다.")
+    public ResponseEntity<ApiRes<List<WebhookApplicationResponse>>> getApplicationsByGoogleForm(
+            @Parameter(description = "구글 폼 ID") @PathVariable Long googleFormId) {
 
-        List<WebhookApplicationResponse> applications = webhookApplicationService.getApplicationsByRecruitment(recruitmentId);
+        List<WebhookApplicationResponse> applications = webhookApplicationService.getApplicationsByGoogleForm(googleFormId);
 
         return ResponseEntity.ok(
-                ApiRes.success(applications, "리크루팅 " + recruitmentId + "의 지원서 " + applications.size() + "개를 조회했습니다.")
+                ApiRes.success(applications, "구글 폼 " + googleFormId + "의 지원서 " + applications.size() + "개를 조회했습니다.")
+        );
+    }
+
+    // 폼 ID별 지원서 목록 조회
+    @GetMapping("/form-id/{formId}")
+    @Operation(summary = "폼 ID별 지원서 조회", description = "특정 폼 ID의 모든 지원서를 조회합니다.")
+    public ResponseEntity<ApiRes<List<WebhookApplicationResponse>>> getApplicationsByFormId(
+            @Parameter(description = "구글 폼 ID") @PathVariable String formId) {
+
+        List<WebhookApplicationResponse> applications = webhookApplicationService.getApplicationsByFormId(formId);
+
+        return ResponseEntity.ok(
+                ApiRes.success(applications, "폼 " + formId + "의 지원서 " + applications.size() + "개를 조회했습니다.")
         );
     }
 
@@ -92,14 +105,27 @@ public class WebhookApplicationController {
                         .body(ApiRes.failure(HttpStatus.NOT_FOUND, ErrorCode.WEBHOOK_APPLICATION_NOT_FOUND)));
     }
 
-    // 리크루팅별 + 이메일로 지원서 조회
-    @GetMapping("/recruitment/{recruitmentId}/by-email")
-    @Operation(summary = "리크루팅별 이메일로 지원서 조회", description = "특정 리크루팅에서 이메일을 기준으로 지원서를 조회합니다.")
-    public ResponseEntity<ApiRes<WebhookApplicationResponse>> getApplicationByRecruitmentAndEmail(
-            @Parameter(description = "리크루팅 ID") @PathVariable Long recruitmentId,
+    // 구글 폼별 + 이메일로 지원서 조회
+    @GetMapping("/google-form/{googleFormId}/by-email")
+    @Operation(summary = "구글 폼별 이메일로 지원서 조회", description = "특정 구글 폼에서 이메일을 기준으로 지원서를 조회합니다.")
+    public ResponseEntity<ApiRes<WebhookApplicationResponse>> getApplicationByGoogleFormAndEmail(
+            @Parameter(description = "구글 폼 ID") @PathVariable Long googleFormId,
             @Parameter(description = "지원자 이메일") @RequestParam String email) {
 
-        return webhookApplicationService.getApplicationByRecruitmentAndEmail(recruitmentId, email)
+        return webhookApplicationService.getApplicationByGoogleFormAndEmail(googleFormId, email)
+                .map(application -> ResponseEntity.ok(ApiRes.success(application)))
+                .orElse(ResponseEntity.status(HttpStatus.NOT_FOUND)
+                        .body(ApiRes.failure(HttpStatus.NOT_FOUND, ErrorCode.WEBHOOK_APPLICATION_NOT_FOUND)));
+    }
+
+    // 폼 ID별 + 이메일로 지원서 조회
+    @GetMapping("/form-id/{formId}/by-email")
+    @Operation(summary = "폼 ID별 이메일로 지원서 조회", description = "특정 폼 ID에서 이메일을 기준으로 지원서를 조회합니다.")
+    public ResponseEntity<ApiRes<WebhookApplicationResponse>> getApplicationByFormIdAndEmail(
+            @Parameter(description = "구글 폼 ID") @PathVariable String formId,
+            @Parameter(description = "지원자 이메일") @RequestParam String email) {
+
+        return webhookApplicationService.getApplicationByFormIdAndEmail(formId, email)
                 .map(application -> ResponseEntity.ok(ApiRes.success(application)))
                 .orElse(ResponseEntity.status(HttpStatus.NOT_FOUND)
                         .body(ApiRes.failure(HttpStatus.NOT_FOUND, ErrorCode.WEBHOOK_APPLICATION_NOT_FOUND)));
@@ -119,20 +145,20 @@ public class WebhookApplicationController {
         );
     }
 
-    // 리크루팅별 + 상태별 지원서 조회
-    @GetMapping("/recruitment/{recruitmentId}/by-status")
-    @Operation(summary = "리크루팅별 상태별 지원서 조회", description = "특정 리크루팅에서 처리 상태를 기준으로 지원서를 조회합니다.")
-    public ResponseEntity<ApiRes<List<WebhookApplicationResponse>>> getApplicationsByRecruitmentAndStatus(
-            @Parameter(description = "리크루팅 ID") @PathVariable Long recruitmentId,
+    // 구글 폼별 + 상태별 지원서 조회
+    @GetMapping("/google-form/{googleFormId}/by-status")
+    @Operation(summary = "구글 폼별 상태별 지원서 조회", description = "특정 구글 폼에서 처리 상태를 기준으로 지원서를 조회합니다.")
+    public ResponseEntity<ApiRes<List<WebhookApplicationResponse>>> getApplicationsByGoogleFormAndStatus(
+            @Parameter(description = "구글 폼 ID") @PathVariable Long googleFormId,
             @Parameter(description = "처리 상태 (PENDING, COMPLETED, FAILED)")
             @RequestParam WebhookApplication.ProcessingStatus status) {
 
         List<WebhookApplicationResponse> applications =
-                webhookApplicationService.getApplicationsByRecruitmentAndStatus(recruitmentId, status);
+                webhookApplicationService.getApplicationsByGoogleFormAndStatus(googleFormId, status);
 
         return ResponseEntity.ok(
                 ApiRes.success(applications,
-                        "리크루팅 " + recruitmentId + "의 " + status + " 상태 지원서 " + applications.size() + "개를 조회했습니다.")
+                        "구글 폼 " + googleFormId + "의 " + status + " 상태 지원서 " + applications.size() + "개를 조회했습니다.")
         );
     }
 
@@ -153,17 +179,36 @@ public class WebhookApplicationController {
         return ResponseEntity.ok(ApiRes.success(result));
     }
 
-    // 리크루팅별 지원서 제출 여부 확인
-    @GetMapping("/recruitment/{recruitmentId}/check")
-    @Operation(summary = "리크루팅별 지원서 제출 여부 확인", description = "특정 리크루팅에서 이메일을 기준으로 지원서 제출 여부를 확인합니다.")
-    public ResponseEntity<ApiRes<Map<String, Object>>> checkApplicationStatusForRecruitment(
-            @Parameter(description = "리크루팅 ID") @PathVariable Long recruitmentId,
+    // 구글 폼별 지원서 제출 여부 확인
+    @GetMapping("/google-form/{googleFormId}/check")
+    @Operation(summary = "구글 폼별 지원서 제출 여부 확인", description = "특정 구글 폼에서 이메일을 기준으로 지원서 제출 여부를 확인합니다.")
+    public ResponseEntity<ApiRes<Map<String, Object>>> checkApplicationStatusForGoogleForm(
+            @Parameter(description = "구글 폼 ID") @PathVariable Long googleFormId,
             @Parameter(description = "확인할 이메일") @RequestParam String email) {
 
-        boolean isSubmitted = webhookApplicationService.isApplicationSubmittedForRecruitment(recruitmentId, email);
+        boolean isSubmitted = webhookApplicationService.isApplicationSubmittedForGoogleForm(googleFormId, email);
 
         Map<String, Object> result = Map.of(
-                "recruitmentId", recruitmentId,
+                "googleFormId", googleFormId,
+                "email", email,
+                "submitted", isSubmitted,
+                "status", isSubmitted ? "submitted" : "not_submitted"
+        );
+
+        return ResponseEntity.ok(ApiRes.success(result));
+    }
+
+    // 폼 ID별 지원서 제출 여부 확인
+    @GetMapping("/form-id/{formId}/check")
+    @Operation(summary = "폼 ID별 지원서 제출 여부 확인", description = "특정 폼 ID에서 이메일을 기준으로 지원서 제출 여부를 확인합니다.")
+    public ResponseEntity<ApiRes<Map<String, Object>>> checkApplicationStatusForFormId(
+            @Parameter(description = "구글 폼 ID") @PathVariable String formId,
+            @Parameter(description = "확인할 이메일") @RequestParam String email) {
+
+        boolean isSubmitted = webhookApplicationService.isApplicationSubmittedForFormId(formId, email);
+
+        Map<String, Object> result = Map.of(
+                "formId", formId,
                 "email", email,
                 "submitted", isSubmitted,
                 "status", isSubmitted ? "submitted" : "not_submitted"
@@ -187,18 +232,35 @@ public class WebhookApplicationController {
         return ResponseEntity.ok(ApiRes.success(result));
     }
 
-    // 리크루팅별 지원서 개수 조회
-    @GetMapping("/recruitment/{recruitmentId}/count")
-    @Operation(summary = "리크루팅별 지원서 개수", description = "특정 리크루팅의 총 지원서 개수를 조회합니다.")
-    public ResponseEntity<ApiRes<Map<String, Object>>> getApplicationCountByRecruitment(
-            @Parameter(description = "리크루팅 ID") @PathVariable Long recruitmentId) {
+    // 구글 폼별 지원서 개수 조회
+    @GetMapping("/google-form/{googleFormId}/count")
+    @Operation(summary = "구글 폼별 지원서 개수", description = "특정 구글 폼의 총 지원서 개수를 조회합니다.")
+    public ResponseEntity<ApiRes<Map<String, Object>>> getApplicationCountByGoogleForm(
+            @Parameter(description = "구글 폼 ID") @PathVariable Long googleFormId) {
 
-        long applicationCount = webhookApplicationService.getApplicationCountByRecruitment(recruitmentId);
+        long applicationCount = webhookApplicationService.getApplicationCountByGoogleForm(googleFormId);
 
         Map<String, Object> result = Map.of(
-                "recruitmentId", recruitmentId,
+                "googleFormId", googleFormId,
                 "applicationCount", applicationCount,
-                "message", "리크루팅 " + recruitmentId + "의 지원서 " + applicationCount + "개"
+                "message", "구글 폼 " + googleFormId + "의 지원서 " + applicationCount + "개"
+        );
+
+        return ResponseEntity.ok(ApiRes.success(result));
+    }
+
+    // 폼 ID별 지원서 개수 조회
+    @GetMapping("/form-id/{formId}/count")
+    @Operation(summary = "폼 ID별 지원서 개수", description = "특정 폼 ID의 총 지원서 개수를 조회합니다.")
+    public ResponseEntity<ApiRes<Map<String, Object>>> getApplicationCountByFormId(
+            @Parameter(description = "구글 폼 ID") @PathVariable String formId) {
+
+        long applicationCount = webhookApplicationService.getApplicationCountByFormId(formId);
+
+        Map<String, Object> result = Map.of(
+                "formId", formId,
+                "applicationCount", applicationCount,
+                "message", "폼 " + formId + "의 지원서 " + applicationCount + "개"
         );
 
         return ResponseEntity.ok(ApiRes.success(result));
@@ -214,16 +276,16 @@ public class WebhookApplicationController {
         return ResponseEntity.ok(ApiRes.success(statistics, "상태별 통계를 조회했습니다."));
     }
 
-    // 리크루팅별 상태별 통계 조회
-    @GetMapping("/recruitment/{recruitmentId}/statistics")
-    @Operation(summary = "리크루팅별 상태별 통계 조회", description = "특정 리크루팅의 상태별 통계를 조회합니다.")
-    public ResponseEntity<ApiRes<Map<WebhookApplication.ProcessingStatus, Long>>> getStatusStatisticsByRecruitment(
-            @Parameter(description = "리크루팅 ID") @PathVariable Long recruitmentId) {
+    // 구글 폼별 상태별 통계 조회
+    @GetMapping("/google-form/{googleFormId}/statistics")
+    @Operation(summary = "구글 폼별 상태별 통계 조회", description = "특정 구글 폼의 상태별 통계를 조회합니다.")
+    public ResponseEntity<ApiRes<Map<WebhookApplication.ProcessingStatus, Long>>> getStatusStatisticsByGoogleForm(
+            @Parameter(description = "구글 폼 ID") @PathVariable Long googleFormId) {
 
         Map<WebhookApplication.ProcessingStatus, Long> statistics =
-                webhookApplicationService.getStatusStatisticsByRecruitment(recruitmentId);
+                webhookApplicationService.getStatusStatisticsByGoogleForm(googleFormId);
 
-        return ResponseEntity.ok(ApiRes.success(statistics, "리크루팅 " + recruitmentId + "의 상태별 통계를 조회했습니다."));
+        return ResponseEntity.ok(ApiRes.success(statistics, "구글 폼 " + googleFormId + "의 상태별 통계를 조회했습니다."));
     }
 
     // 웹훅 연결 테스트용 엔드포인트
