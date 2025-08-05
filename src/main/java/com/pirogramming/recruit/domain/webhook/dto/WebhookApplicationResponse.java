@@ -1,5 +1,6 @@
 package com.pirogramming.recruit.domain.webhook.dto;
 
+import com.pirogramming.recruit.domain.googleform.entity.GoogleForm;
 import com.pirogramming.recruit.domain.webhook.entity.WebhookApplication;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
