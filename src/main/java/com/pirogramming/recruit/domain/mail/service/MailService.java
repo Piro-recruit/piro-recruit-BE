@@ -14,6 +14,7 @@ import org.springframework.stereotype.Service;
 
 import com.pirogramming.recruit.domain.mail.dto.BulkMailRequestDto;
 import com.pirogramming.recruit.domain.mail.dto.SingleMailRequestDto;
+import com.pirogramming.recruit.domain.mail.repository.MailSubscriberRepository;
 
 import jakarta.mail.MessagingException;
 import jakarta.mail.internet.MimeMessage;
@@ -26,6 +27,7 @@ import lombok.extern.slf4j.Slf4j;
 public class MailService {
 
 	private final JavaMailSender javaMailSender;
+	private final MailSubscriberRepository mailSubscriberRepository;
 
 	public void sendSingleMail(SingleMailRequestDto mailRequest) {
 		try {
@@ -39,7 +41,6 @@ public class MailService {
 	}
 
 	public void sendBulkMail(BulkMailRequestDto mailRequest) {
-		// TODO: DB에서 알림 신청한 모든 이메일 조회
 		List<String> recipients = getAllSubscribedEmails();
 		
 		if (recipients.isEmpty()) {
@@ -211,9 +212,10 @@ public class MailService {
 	}
 
 	private List<String> getAllSubscribedEmails() {
-		// TODO: 실제 DB 연동 시 구현
-		// 현재는 테스트용 더미 데이터
-		return List.of("rlarbdlf222@naver.com");
+		return mailSubscriberRepository.findAll()
+				.stream()
+				.map(subscriber -> subscriber.getEmail())
+				.toList();
 	}
 
 	private String convertMarkdownToHtml(String markdown) {
