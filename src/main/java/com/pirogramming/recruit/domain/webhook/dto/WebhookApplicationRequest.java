@@ -15,8 +15,8 @@ import java.util.Map;
 @AllArgsConstructor
 public class WebhookApplicationRequest {
 
-    @NotNull(message = "리크루팅 기수는 필수입니다")
-    private Long recruitmentId;
+    @NotBlank(message = "구글 폼 ID는 필수입니다")
+    private String formId; // 구글 폼 ID (GoogleForm과 연결)
 
     @NotBlank(message = "지원자 이름은 필수입니다")
     private String applicantName;
@@ -36,10 +36,10 @@ public class WebhookApplicationRequest {
     private Map<String, Object> formData;
 
     // DTO를 Entity로 변환
-    // Recruitment 엔티티는 Service에서 별도로 조회해서 설정해야 함
-    public WebhookApplication toEntity(com.pirogramming.recruit.domain.recruitment.entity.Recruitment recruitment) {
+    // GoogleForm 엔티티는 Service에서 별도로 조회해서 설정해야 함
+    public WebhookApplication toEntity(com.pirogramming.recruit.domain.googleform.entity.GoogleForm googleForm) {
         return WebhookApplication.builder()
-                .recruitment(recruitment)
+                .googleForm(googleForm)
                 .applicantName(this.applicantName)
                 .applicantEmail(this.applicantEmail)
                 .formResponseId(this.formResponseId)
@@ -48,14 +48,15 @@ public class WebhookApplicationRequest {
                 .build();
     }
 
-    // 폼 데이터에서 특정 값 조회(원본의 타입을 그대로 반환 -> 타입별로 처리가 필요할 때)
+    // 폼 데이터에서 특정 값 조회
     public Object getFormValue(String key) {
         return formData != null ? formData.get(key) : null;
     }
 
-    // 폼 데이터에서 문자열 값 조회(모두 문자열로 변환)
+    // 폼 데이터에서 문자열 값 조회
     public String getFormValueAsString(String key) {
         Object value = getFormValue(key);
         return value != null ? value.toString() : null;
     }
 }
+

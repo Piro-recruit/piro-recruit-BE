@@ -16,8 +16,9 @@ import java.util.Map;
 public class WebhookApplicationResponse {
 
     private Long id;
-    private Long recruitmentId;
-    private String recruitmentTitle;
+    private Long googleFormId;
+    private String formId;
+    private String formTitle;
     private String applicantName;
     private String applicantEmail;
     private String formResponseId;
@@ -41,8 +42,9 @@ public class WebhookApplicationResponse {
     public static WebhookApplicationResponse from(WebhookApplication entity) {
         return WebhookApplicationResponse.builder()
                 .id(entity.getId())
-                .recruitmentId(entity.getRecruitment().getId())
-                .recruitmentTitle(entity.getRecruitment().getTitle())
+                .googleFormId(entity.getGoogleForm().getId())
+                .formId(entity.getGoogleForm().getFormId())
+                .formTitle(entity.getGoogleForm().getTitle())
                 .applicantName(entity.getApplicantName())
                 .applicantEmail(entity.getApplicantEmail())
                 .formResponseId(entity.getFormResponseId())
