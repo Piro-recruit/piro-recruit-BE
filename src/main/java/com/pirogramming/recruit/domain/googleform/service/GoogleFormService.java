@@ -83,19 +83,25 @@ public class GoogleFormService {
     public GoogleForm activateGoogleForm(Long googleFormId) {
         log.info("구글 폼 활성화: {}", googleFormId);
 
-        // 기존 활성화된 구글 폼 비활성화
-        googleFormRepository.findByIsActiveTrue()
-                .ifPresent(activeForm -> {
-                    activeForm.deactivate();
-                    googleFormRepository.save(activeForm);
-                    log.info("기존 활성화된 구글 폼 비활성화: {}", activeForm.getId());
-                });
+        // 대상 구글 폼 존재 확인
+        GoogleForm targetGoogleForm = getGoogleFormByIdRequired(googleFormId);
+        
+        // 이미 활성화되어 있다면 그대로 반환
+        if (Boolean.TRUE.equals(targetGoogleForm.getIsActive())) {
+            log.info("구글 폼이 이미 활성화되어 있음: {}", googleFormId);
+            return targetGoogleForm;
+        }
 
-        // 새 구글 폼 활성화
-        GoogleForm googleForm = getGoogleFormByIdRequired(googleFormId);
-        googleForm.activate();
+        // 모든 구글 폼 비활성화 (원자적 일괄 업데이트)
+        int deactivatedCount = googleFormRepository.deactivateAllGoogleForms();
+        log.info("기존 활성화된 구글 폼 {}개 비활성화 완료", deactivatedCount);
 
-        return googleFormRepository.save(googleForm);
+        // 대상 구글 폼 활성화
+        targetGoogleForm.activate();
+        GoogleForm savedGoogleForm = googleFormRepository.save(targetGoogleForm);
+        
+        log.info("구글 폼 활성화 완료: {}", googleFormId);
+        return savedGoogleForm;
     }
 
     // 구글 폼 비활성화

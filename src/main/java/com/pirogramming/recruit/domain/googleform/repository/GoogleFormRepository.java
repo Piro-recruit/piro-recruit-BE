@@ -2,6 +2,7 @@ package com.pirogramming.recruit.domain.googleform.repository;
 
 import com.pirogramming.recruit.domain.googleform.entity.GoogleForm;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.stereotype.Repository;
 
@@ -32,4 +33,9 @@ public interface GoogleFormRepository extends JpaRepository<GoogleForm, Long> {
 
     // 폼 ID 존재 여부 확인
     boolean existsByFormId(String formId);
+
+    // 모든 구글 폼을 비활성화 (원자적 연산)
+    @Modifying
+    @Query("UPDATE GoogleForm g SET g.isActive = false WHERE g.isActive = true")
+    int deactivateAllGoogleForms();
 }
