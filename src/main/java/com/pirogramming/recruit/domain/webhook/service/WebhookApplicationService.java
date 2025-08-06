@@ -8,6 +8,8 @@ import com.pirogramming.recruit.domain.webhook.entity.WebhookApplication;
 import com.pirogramming.recruit.domain.webhook.repository.WebhookApplicationRepository;
 import com.pirogramming.recruit.global.exception.code.ErrorCode;
 import com.pirogramming.recruit.global.exception.entity_exception.DuplicateResourceException;
+import com.pirogramming.recruit.global.exception.RecruitException;
+import org.springframework.http.HttpStatus;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -70,7 +72,7 @@ public class WebhookApplicationService {
                 return WebhookApplicationResponse.from(savedFailedApplication);
             } catch (Exception saveException) {
                 log.error("실패한 지원서 저장 중 추가 오류 발생: {}", saveException.getMessage(), saveException);
-                throw new RuntimeException("웹훅 처리 및 실패 저장에 모두 실패했습니다.", e);
+                throw new RecruitException(HttpStatus.INTERNAL_SERVER_ERROR, ErrorCode.WEBHOOK_PROCESSING_FAILED);
             }
         }
     }
@@ -125,21 +127,15 @@ public class WebhookApplicationService {
                 .map(WebhookApplicationResponse::from);
     }
 
-    // 구글 폼별 + 이메일로 지원서 조회
+    // 구글 폼별 + 이메일로 지원서 조회 (최적화됨)
     public Optional<WebhookApplicationResponse> getApplicationByGoogleFormAndEmail(Long googleFormId, String email) {
-        return webhookApplicationRepository.findByGoogleFormId(googleFormId)
-                .stream()
-                .filter(app -> app.getApplicantEmail().equals(email))
-                .findFirst()
+        return webhookApplicationRepository.findByGoogleFormIdAndApplicantEmail(googleFormId, email)
                 .map(WebhookApplicationResponse::from);
     }
 
-    // 폼 ID + 이메일로 지원서 조회
+    // 폼 ID + 이메일로 지원서 조회 (최적화됨)
     public Optional<WebhookApplicationResponse> getApplicationByFormIdAndEmail(String formId, String email) {
-        return webhookApplicationRepository.findByFormIdOrderByCreatedAtDesc(formId)
-                .stream()
-                .filter(app -> app.getApplicantEmail().equals(email))
-                .findFirst()
+        return webhookApplicationRepository.findByFormIdAndApplicantEmail(formId, email)
                 .map(WebhookApplicationResponse::from);
     }
 
@@ -169,9 +165,9 @@ public class WebhookApplicationService {
         return webhookApplicationRepository.countByGoogleFormId(googleFormId);
     }
 
-    // 폼 ID별 지원서 개수 조회
+    // 폼 ID별 지원서 개수 조회 (최적화됨)
     public long getApplicationCountByFormId(String formId) {
-        return webhookApplicationRepository.findByFormIdOrderByCreatedAtDesc(formId).size();
+        return webhookApplicationRepository.countByFormId(formId);
     }
 
     // 지원서 제출 여부 확인 (이메일 기준)
@@ -189,27 +185,25 @@ public class WebhookApplicationService {
         return webhookApplicationRepository.existsByFormIdAndApplicantEmail(formId, email);
     }
 
-    // 상태별 통계 조회
+    // 상태별 통계 조회 (최적화됨)
     public Map<WebhookApplication.ProcessingStatus, Long> getStatusStatistics() {
-        Map<WebhookApplication.ProcessingStatus, Long> statistics = new HashMap<>();
-
-        for (WebhookApplication.ProcessingStatus status : WebhookApplication.ProcessingStatus.values()) {
-            long count = webhookApplicationRepository.countByStatus(status);
-            statistics.put(status, count);
-        }
-
-        return statistics;
+        return calculateStatusStatistics(status -> webhookApplicationRepository.countByStatus(status));
     }
 
-    // 구글 폼별 상태별 통계 조회
+    // 구글 폼별 상태별 통계 조회 (최적화됨)
     public Map<WebhookApplication.ProcessingStatus, Long> getStatusStatisticsByGoogleForm(Long googleFormId) {
-        Map<WebhookApplication.ProcessingStatus, Long> statistics = new HashMap<>();
+        return calculateStatusStatistics(status -> webhookApplicationRepository.countByGoogleFormIdAndStatus(googleFormId, status));
+    }
 
+    // 통계 계산 공통 로직 (중복 제거)
+    private Map<WebhookApplication.ProcessingStatus, Long> calculateStatusStatistics(java.util.function.Function<WebhookApplication.ProcessingStatus, Long> countFunction) {
+        Map<WebhookApplication.ProcessingStatus, Long> statistics = new HashMap<>();
+        
         for (WebhookApplication.ProcessingStatus status : WebhookApplication.ProcessingStatus.values()) {
-            long count = webhookApplicationRepository.findByGoogleFormIdAndStatus(googleFormId, status).size();
+            long count = countFunction.apply(status);
             statistics.put(status, count);
         }
-
+        
         return statistics;
     }
 }
