@@ -4,6 +4,8 @@ import com.pirogramming.recruit.domain.googleform.entity.GoogleForm;
 import com.pirogramming.recruit.domain.googleform.repository.GoogleFormRepository;
 import com.pirogramming.recruit.global.exception.code.ErrorCode;
 import com.pirogramming.recruit.global.exception.entity_exception.DuplicateResourceException;
+import com.pirogramming.recruit.global.exception.RecruitException;
+import org.springframework.http.HttpStatus;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -28,7 +30,7 @@ public class GoogleFormService {
     // 현재 활성화된 구글 폼 조회(필수)
     public GoogleForm getActiveGoogleFormRequired() {
         return getActiveGoogleForm()
-                .orElseThrow(() -> new RuntimeException("현재 활성화된 구글 폼이 없습니다."));
+                .orElseThrow(() -> new RecruitException(HttpStatus.NOT_FOUND, ErrorCode.GOOGLE_FORM_NOT_ACTIVE));
     }
 
     // ID로 구글 폼 조회
@@ -39,7 +41,7 @@ public class GoogleFormService {
     // ID로 구글 폼 조회 (필수)
     public GoogleForm getGoogleFormByIdRequired(Long id) {
         return getGoogleFormById(id)
-                .orElseThrow(() -> new RuntimeException("해당 구글 폼을 찾을 수 없습니다. ID: " + id));
+                .orElseThrow(() -> new RecruitException(HttpStatus.NOT_FOUND, ErrorCode.GOOGLE_FORM_NOT_FOUND));
     }
 
     // 폼 ID로 구글 폼 조회
@@ -50,7 +52,7 @@ public class GoogleFormService {
     // 폼 ID로 구글 폼 조회 (필수)
     public GoogleForm getGoogleFormByFormIdRequired(String formId) {
         return getGoogleFormByFormId(formId)
-                .orElseThrow(() -> new RuntimeException("해당 구글 폼을 찾을 수 없습니다. FormID: " + formId));
+                .orElseThrow(() -> new RecruitException(HttpStatus.NOT_FOUND, ErrorCode.GOOGLE_FORM_NOT_FOUND));
     }
 
     // 전체 구글 폼 목록 조회
@@ -129,8 +131,8 @@ public class GoogleFormService {
         return googleFormRepository.save(googleForm);
     }
 
-    // 제목으로 구글 폼 검색
+    // 제목으로 구글 폼 검색 (대소문자 무시)
     public List<GoogleForm> searchGoogleFormsByTitle(String title) {
-        return googleFormRepository.findByTitleContaining(title);
+        return googleFormRepository.findByTitleContainingIgnoreCase(title);
     }
 }
