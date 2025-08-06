@@ -63,4 +63,20 @@ public interface WebhookApplicationRepository extends JpaRepository<WebhookAppli
     // 폼 ID로 지원서 존재 확인 (이메일 기준)
     @Query("SELECT COUNT(w) > 0 FROM WebhookApplication w WHERE w.googleForm.formId = :formId AND w.applicantEmail = :email")
     boolean existsByFormIdAndApplicantEmail(@Param("formId") String formId, @Param("email") String email);
+
+    // 구글 폼별 + 상태별 지원서 개수 조회 (N+1 방지)
+    @Query("SELECT COUNT(w) FROM WebhookApplication w WHERE w.googleForm.id = :googleFormId AND w.status = :status")
+    long countByGoogleFormIdAndStatus(@Param("googleFormId") Long googleFormId, @Param("status") WebhookApplication.ProcessingStatus status);
+
+    // 구글 폼별 + 이메일로 지원서 조회 (Stream 필터링 방지)
+    @Query("SELECT w FROM WebhookApplication w WHERE w.googleForm.id = :googleFormId AND w.applicantEmail = :email")
+    Optional<WebhookApplication> findByGoogleFormIdAndApplicantEmail(@Param("googleFormId") Long googleFormId, @Param("email") String email);
+
+    // 폼 ID별 + 이메일로 지원서 조회 (Stream 필터링 방지)
+    @Query("SELECT w FROM WebhookApplication w WHERE w.googleForm.formId = :formId AND w.applicantEmail = :email ORDER BY w.createdAt DESC")
+    Optional<WebhookApplication> findByFormIdAndApplicantEmail(@Param("formId") String formId, @Param("email") String email);
+
+    // 폼 ID별 지원서 개수 조회 (size() 호출 방지)
+    @Query("SELECT COUNT(w) FROM WebhookApplication w WHERE w.googleForm.formId = :formId")
+    long countByFormId(@Param("formId") String formId);
 }
