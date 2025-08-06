@@ -57,11 +57,25 @@ public class GoogleForm extends BaseTimeEntity {
 
     // 폼 URL 업데이트
     public void updateFormUrl(String newUrl) {
+        validateUrl(newUrl, "폼 URL");
         this.formUrl = newUrl;
     }
 
     // 시트 URL 업데이트
     public void updateSheetUrl(String newUrl) {
+        if (newUrl != null) { // sheetUrl은 nullable이므로 null 체크
+            validateUrl(newUrl, "시트 URL");
+        }
         this.sheetUrl = newUrl;
+    }
+
+    // URL 유효성 검증
+    private void validateUrl(String url, String fieldName) {
+        if (url == null || url.trim().isEmpty()) {
+            throw new IllegalArgumentException(fieldName + "은 필수입니다");
+        }
+        if (!url.startsWith("http://") && !url.startsWith("https://")) {
+            throw new IllegalArgumentException(fieldName + "은 올바른 URL 형식이어야 합니다");
+        }
     }
 }
