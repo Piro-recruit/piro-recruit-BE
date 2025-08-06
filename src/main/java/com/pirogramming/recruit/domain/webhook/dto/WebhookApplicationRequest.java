@@ -31,7 +31,7 @@ public class WebhookApplicationRequest {
     @NotBlank(message = "구글 폼 응답 ID는 필수입니다")
     private String formResponseId;
 
-    @NotBlank(message = "제출 시간은 필수입니다")
+    @NotNull(message = "제출 시간은 필수입니다")
     private LocalDateTime submissionTimestamp;
 
     // 유연한 폼 데이터 (JSON)
