@@ -30,7 +30,7 @@ public class GoogleForm extends BaseTimeEntity {
     private String sheetUrl; // 연결된 구글 시트 URL
 
     @Column(nullable = false)
-    private Boolean isActive = true; // 현재 사용 중인 폼인지
+    private Boolean isActive = false; // 현재 사용 중인 폼인지
 
     @Column(columnDefinition = "TEXT")
     private String description; // 폼 설명
@@ -42,7 +42,7 @@ public class GoogleForm extends BaseTimeEntity {
         this.formUrl = formUrl;
         this.sheetUrl = sheetUrl;
         this.description = description;
-        this.isActive = true;
+        this.isActive = false;
     }
 
     // 폼 활성화 (기존 활성화된 것은 비활성화)
