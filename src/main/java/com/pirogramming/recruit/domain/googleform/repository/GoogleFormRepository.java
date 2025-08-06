@@ -24,8 +24,11 @@ public interface GoogleFormRepository extends JpaRepository<GoogleForm, Long> {
     @Query("SELECT g FROM GoogleForm g ORDER BY g.createdAt DESC")
     List<GoogleForm> findAllOrderByCreatedAtDesc();
 
-    // 제목으로 구글 폼 검색
+    // 제목으로 구글 폼 검색 (대소문자 구분)
     List<GoogleForm> findByTitleContaining(String title);
+
+    // 제목으로 구글 폼 검색 (대소문자 무시)
+    List<GoogleForm> findByTitleContainingIgnoreCase(String title);
 
     // 폼 ID 존재 여부 확인
     boolean existsByFormId(String formId);
