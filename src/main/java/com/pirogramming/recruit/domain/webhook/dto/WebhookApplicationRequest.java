@@ -1,14 +1,17 @@
 package com.pirogramming.recruit.domain.webhook.dto;
 
+import java.time.LocalDateTime;
+import java.util.Map;
+
+import com.pirogramming.recruit.domain.googleform.entity.GoogleForm;
 import com.pirogramming.recruit.domain.webhook.entity.WebhookApplication;
+
 import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
-
-import java.util.Map;
 
 @Getter
 @NoArgsConstructor
@@ -29,7 +32,7 @@ public class WebhookApplicationRequest {
     private String formResponseId;
 
     @NotBlank(message = "제출 시간은 필수입니다")
-    private String submissionTimestamp;
+    private LocalDateTime submissionTimestamp;
 
     // 유연한 폼 데이터 (JSON)
     @NotNull(message = "폼 데이터는 필수입니다")
@@ -37,7 +40,7 @@ public class WebhookApplicationRequest {
 
     // DTO를 Entity로 변환
     // GoogleForm 엔티티는 Service에서 별도로 조회해서 설정해야 함
-    public WebhookApplication toEntity(com.pirogramming.recruit.domain.googleform.entity.GoogleForm googleForm) {
+    public WebhookApplication toEntity(GoogleForm googleForm) {
         return WebhookApplication.builder()
                 .googleForm(googleForm)
                 .applicantName(this.applicantName)
