@@ -12,7 +12,7 @@ import lombok.NoArgsConstructor;
 @Getter
 @NoArgsConstructor
 @AllArgsConstructor
-@Builder
+@Builder(toBuilder = true)
 public class GoogleFormResponse {
 
     private Long id;
@@ -47,17 +47,8 @@ public class GoogleFormResponse {
 
     // Entity를 DTO로 변환 (지원서 개수 포함)
     public static GoogleFormResponse fromWithApplicationCount(GoogleForm entity, Long applicationCount) {
-        return GoogleFormResponse.builder()
-            .id(entity.getId())
-            .formId(entity.getFormId())
-            .title(entity.getTitle())
-            .formUrl(entity.getFormUrl())
-            .sheetUrl(entity.getSheetUrl())
-            .isActive(entity.getIsActive())
-            .description(entity.getDescription())
+        return from(entity).toBuilder()
             .applicationCount(applicationCount)
-            .createdAt(entity.getCreatedAt())
-            .updatedAt(entity.getUpdatedAt())
             .build();
     }
 }
