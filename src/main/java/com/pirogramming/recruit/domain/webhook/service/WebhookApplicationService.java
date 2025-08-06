@@ -1,25 +1,27 @@
 package com.pirogramming.recruit.domain.webhook.service;
 
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.Optional;
+import java.util.stream.Collectors;
+
+import org.springframework.http.HttpStatus;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
 import com.pirogramming.recruit.domain.googleform.entity.GoogleForm;
 import com.pirogramming.recruit.domain.googleform.service.GoogleFormService;
 import com.pirogramming.recruit.domain.webhook.dto.WebhookApplicationRequest;
 import com.pirogramming.recruit.domain.webhook.dto.WebhookApplicationResponse;
 import com.pirogramming.recruit.domain.webhook.entity.WebhookApplication;
 import com.pirogramming.recruit.domain.webhook.repository.WebhookApplicationRepository;
+import com.pirogramming.recruit.global.exception.RecruitException;
 import com.pirogramming.recruit.global.exception.code.ErrorCode;
 import com.pirogramming.recruit.global.exception.entity_exception.DuplicateResourceException;
-import com.pirogramming.recruit.global.exception.RecruitException;
-import org.springframework.http.HttpStatus;
+
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
-
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.Optional;
-import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
@@ -193,6 +195,30 @@ public class WebhookApplicationService {
     // 구글 폼별 상태별 통계 조회 (최적화됨)
     public Map<WebhookApplication.ProcessingStatus, Long> getStatusStatisticsByGoogleForm(Long googleFormId) {
         return calculateStatusStatistics(status -> webhookApplicationRepository.countByGoogleFormIdAndStatus(googleFormId, status));
+    }
+
+    // 여러 구글 폼의 지원서 개수를 한번에 조회 (N+1 방지)
+    public Map<Long, Long> getApplicationCountsByGoogleForms(List<Long> googleFormIds) {
+        if (googleFormIds == null || googleFormIds.isEmpty()) {
+            return new HashMap<>();
+        }
+
+        List<Object[]> results = webhookApplicationRepository.countByGoogleFormIds(googleFormIds);
+        Map<Long, Long> countMap = new HashMap<>();
+        
+        // 쿼리 결과를 Map으로 변환
+        for (Object[] result : results) {
+            Long googleFormId = (Long) result[0];
+            Long count = (Long) result[1];
+            countMap.put(googleFormId, count);
+        }
+        
+        // 조회된 결과에 없는 구글 폼은 0으로 설정
+        for (Long googleFormId : googleFormIds) {
+            countMap.putIfAbsent(googleFormId, 0L);
+        }
+        
+        return countMap;
     }
 
     // 통계 계산 공통 로직 (중복 제거)
