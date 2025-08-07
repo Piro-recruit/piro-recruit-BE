@@ -1,7 +1,10 @@
 package com.pirogramming.recruit.global.config;
 
-import java.util.List;
-
+import com.pirogramming.recruit.global.jwt.JwtAuthenticationFilter;
+import com.pirogramming.recruit.global.jwt.JwtTokenProvider;
+import com.pirogramming.recruit.domain.admin.service.CustomUserDetailsService;
+import jakarta.servlet.http.HttpServletResponse;
+import lombok.RequiredArgsConstructor;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.security.authentication.AuthenticationManager;
@@ -13,16 +16,18 @@ import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.web.SecurityFilterChain;
+import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
 import org.springframework.web.cors.CorsConfiguration;
 
-import jakarta.servlet.http.HttpServletResponse;
-import lombok.RequiredArgsConstructor;
+import java.util.List;
 
 @Configuration
 @EnableWebSecurity
 @RequiredArgsConstructor
 public class SecurityConfig {
 
+	private final JwtTokenProvider jwtTokenProvider;
+	private final CustomUserDetailsService customUserDetailsService;
 
 	@Bean
 	public AuthenticationManager authenticationManager(AuthenticationConfiguration config) throws Exception {
@@ -35,42 +40,34 @@ public class SecurityConfig {
 	}
 
 	@Bean
-	public SecurityFilterChain securityFilterChain(HttpSecurity http, AuthenticationManager authManager) throws
-		Exception {
-
-		// LoginFilter loginFilter = new LoginFilter(refreshTokenRepository, authManager, jwtTokenProvider, objectMapper, attendanceService);
-		// loginFilter.setFilterProcessesUrl("/api/auth/login");
+	public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
 
 		http
-			.csrf(AbstractHttpConfigurer::disable)
-			.formLogin(AbstractHttpConfigurer::disable)
-			.httpBasic(AbstractHttpConfigurer::disable)
+				.csrf(AbstractHttpConfigurer::disable)
+				.formLogin(AbstractHttpConfigurer::disable)
+				.httpBasic(AbstractHttpConfigurer::disable)
+				.cors(cors -> cors.configurationSource(request -> {
+					CorsConfiguration config = new CorsConfiguration();
+					config.setAllowedOriginPatterns(List.of("*"));
+					config.setAllowedMethods(List.of("GET", "POST", "PUT", "DELETE", "OPTIONS"));
+					config.setAllowCredentials(true);
+					config.setAllowedHeaders(List.of("*"));
+					config.setExposedHeaders(List.of("Authorization"));
+					config.setMaxAge(3600L);
+					return config;
+				}))
+				.sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
+				.authorizeHttpRequests(auth -> auth
+						.requestMatchers("/api/admin/login", "/api/admin/refresh").permitAll()
+						.anyRequest().authenticated()
+				)
+				.exceptionHandling(except -> except
+						.authenticationEntryPoint((request, response, authException) ->
+								response.sendError(HttpServletResponse.SC_UNAUTHORIZED, "Unauthorized"))
+				);
 
-			.cors(cors -> cors.configurationSource(request -> {
-				CorsConfiguration config = new CorsConfiguration();
-				config.setAllowedOriginPatterns(List.of("*"));
-				config.setAllowedMethods(List.of("GET", "POST", "PUT", "DELETE", "OPTIONS"));
-				config.setAllowCredentials(true);
-				config.setAllowedHeaders(List.of("*"));
-				config.setExposedHeaders(List.of("Authorization"));
-				config.setMaxAge(3600L);
-				return config;
-			}))
-
-			.sessionManagement(session -> session
-				.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
-
-			.authorizeHttpRequests(auth -> auth
-				.anyRequest().permitAll())
-
-			.exceptionHandling(except -> except
-				.authenticationEntryPoint((request, response, authException) ->
-					response.sendError(HttpServletResponse.SC_UNAUTHORIZED, "Unauthorized")));
-
-		// http.addFilterBefore(loginFilter, UsernamePasswordAuthenticationFilter.class);
-		// http.addFilterBefore(new JwtAuthenticationFilter(jwtTokenProvider, customUserDetailsService),
-		// 	UsernamePasswordAuthenticationFilter.class);
-		//
+		http.addFilterBefore(new JwtAuthenticationFilter(jwtTokenProvider, customUserDetailsService),
+				UsernamePasswordAuthenticationFilter.class);
 
 		return http.build();
 	}

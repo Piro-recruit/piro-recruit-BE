@@ -1,4 +1,4 @@
-package com.pirogramming.Recruit.global.exception;
+package com.pirogramming.recruit.global.exception;
 
 import java.util.stream.Collectors;
 
@@ -68,6 +68,5 @@ public class GlobalExceptionHandler {
 		return ResponseEntity.status(HttpStatus.BAD_REQUEST)
 			.body(ApiRes.failure(HttpStatus.BAD_REQUEST, e.getMessage(), ErrorCode.INVALID_ARGUMENT));
 	}
-
 
 }
