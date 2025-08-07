@@ -5,10 +5,7 @@ import com.pirogramming.recruit.domain.admin.dto.LoginResponse;
 import com.pirogramming.recruit.domain.admin.service.AdminService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.*;
 
 @RestController
 @RequestMapping("/api/admin")
@@ -18,7 +15,11 @@ public class AdminController {
 
     @PostMapping("/login")
     public ResponseEntity<LoginResponse> login(@RequestBody LoginRequest request) {
-        LoginResponse response = adminService.login(request);
-        return ResponseEntity.ok(response);
+        return ResponseEntity.ok(adminService.login(request));
+    }
+
+    @PostMapping("/refresh")
+    public ResponseEntity<LoginResponse> refresh(@RequestBody String refreshToken) {
+        return ResponseEntity.ok(adminService.reissue(refreshToken));
     }
 }
