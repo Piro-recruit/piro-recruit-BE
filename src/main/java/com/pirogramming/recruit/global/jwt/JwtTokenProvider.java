@@ -2,9 +2,12 @@ package com.pirogramming.recruit.global.jwt;
 
 import com.pirogramming.recruit.domain.admin.entity.AdminRole;
 import io.jsonwebtoken.*;
+import io.jsonwebtoken.security.Keys;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 
+import javax.crypto.SecretKey;
+import java.nio.charset.StandardCharsets;
 import java.util.Date;
 
 @Component
@@ -12,6 +15,11 @@ public class JwtTokenProvider {
 
     @Value("${jwt.secret}")
     private String secretKey;
+    
+    private SecretKey getSigningKey() {
+        byte[] keyBytes = secretKey.getBytes(StandardCharsets.UTF_8);
+        return Keys.hmacShaKeyFor(keyBytes);
+    }
 
     // 유효 시간 설정 (1시간, 7일)
     private static final long ACCESS_TOKEN_EXPIRATION = 1000L * 60 * 60;       // 1시간
@@ -27,7 +35,7 @@ public class JwtTokenProvider {
                 .claim("role", role.name())
                 .setIssuedAt(now)
                 .setExpiration(expiryDate)
-                .signWith(SignatureAlgorithm.HS512, secretKey)
+                .signWith(getSigningKey(), SignatureAlgorithm.HS512)
                 .compact();
     }
 
@@ -40,15 +48,16 @@ public class JwtTokenProvider {
                 .setSubject(String.valueOf(adminId))
                 .setIssuedAt(now)
                 .setExpiration(expiryDate)
-                .signWith(SignatureAlgorithm.HS512, secretKey)
+                .signWith(getSigningKey(), SignatureAlgorithm.HS512)
                 .compact();
     }
 
     // 토큰 유효성 검사
     public boolean validateToken(String token) {
         try {
-            Jwts.parser()
-                    .setSigningKey(secretKey)
+            Jwts.parserBuilder()
+                    .setSigningKey(getSigningKey())
+                    .build()
                     .parseClaimsJws(token);
             return true;
         } catch (ExpiredJwtException e) {
@@ -62,8 +71,9 @@ public class JwtTokenProvider {
 
     // 토큰에서 adminId 꺼내기
     public Long getAdminIdFromToken(String token) {
-        Claims claims = Jwts.parser()
-                .setSigningKey(secretKey)
+        Claims claims = Jwts.parserBuilder()
+                .setSigningKey(getSigningKey())
+                .build()
                 .parseClaimsJws(token)
                 .getBody();
         return Long.parseLong(claims.getSubject());
@@ -71,8 +81,9 @@ public class JwtTokenProvider {
 
     // 토큰에서 역할(Role) 꺼내기
     public String getRoleFromToken(String token) {
-        Claims claims = Jwts.parser()
-                .setSigningKey(secretKey)
+        Claims claims = Jwts.parserBuilder()
+                .setSigningKey(getSigningKey())
+                .build()
                 .parseClaimsJws(token)
                 .getBody();
         return (String) claims.get("role");
@@ -81,8 +92,9 @@ public class JwtTokenProvider {
     // 토큰 만료 여부 검사 (예외 발생 없이 만료 여부만 확인용)
     public boolean isTokenExpired(String token) {
         try {
-            Date expiration = Jwts.parser()
-                    .setSigningKey(secretKey)
+            Date expiration = Jwts.parserBuilder()
+                    .setSigningKey(getSigningKey())
+                    .build()
                     .parseClaimsJws(token)
                     .getBody()
                     .getExpiration();
