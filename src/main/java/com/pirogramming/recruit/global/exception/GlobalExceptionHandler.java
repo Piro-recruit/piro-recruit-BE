@@ -1,4 +1,4 @@
-package com.pirogramming.Recruit.global.exception;
+package com.pirogramming.recruit.global.exception;
 
 import java.util.stream.Collectors;
 
@@ -49,11 +49,11 @@ public class GlobalExceptionHandler {
 			.body(ApiRes.failure(HttpStatus.FORBIDDEN, ErrorCode.FORBIDDEN));
 	}
 
-	@ExceptionHandler(RuntimeException.class)
-	public ResponseEntity<ApiRes<Void>> handleRuntimeException(RuntimeException e) {
-		log.error("Unexpected error: ", e);
-		return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-			.body(ApiRes.failure(HttpStatus.INTERNAL_SERVER_ERROR, ErrorCode.INTERNAL_ERROR));
+	@ExceptionHandler(IllegalArgumentException.class)
+	public ResponseEntity<ApiRes<Void>> handleIllegalArgument(IllegalArgumentException e) {
+		log.warn("잘못된 요청 파라미터: {}", e.getMessage());
+		return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+			.body(ApiRes.failure(HttpStatus.BAD_REQUEST, e.getMessage(), ErrorCode.INVALID_ARGUMENT));
 	}
 
 	@ExceptionHandler(MemberNotFoundException.class)
@@ -62,11 +62,11 @@ public class GlobalExceptionHandler {
 			.body(ApiRes.failure(e.getStatus(), e.getMessage(), e.getErrorCode()));
 	}
 
-	@ExceptionHandler(IllegalArgumentException.class)
-	public ResponseEntity<ApiRes<Void>> handleIllegalArgument(IllegalArgumentException e) {
-		log.warn("잘못된 요청 파라미터: {}", e.getMessage());
-		return ResponseEntity.status(HttpStatus.BAD_REQUEST)
-			.body(ApiRes.failure(HttpStatus.BAD_REQUEST, e.getMessage(), ErrorCode.INVALID_ARGUMENT));
+	@ExceptionHandler(RuntimeException.class)
+	public ResponseEntity<ApiRes<Void>> handleRuntimeException(RuntimeException e) {
+		log.error("Unexpected error: ", e);
+		return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+			.body(ApiRes.failure(HttpStatus.INTERNAL_SERVER_ERROR, ErrorCode.INTERNAL_ERROR));
 	}
 
 
