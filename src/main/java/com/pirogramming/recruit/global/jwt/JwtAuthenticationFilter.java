@@ -1,10 +1,15 @@
 package com.pirogramming.recruit.global.jwt;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.pirogramming.recruit.domain.admin.service.CustomUserDetailsService;
+import com.pirogramming.recruit.global.exception.ApiRes;
+import com.pirogramming.recruit.global.exception.code.ErrorCode;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.util.StringUtils;
@@ -16,6 +21,7 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
     private final JwtTokenProvider jwtTokenProvider;
     private final CustomUserDetailsService userDetailsService;
+    private final ObjectMapper objectMapper = new ObjectMapper();
 
     public JwtAuthenticationFilter(JwtTokenProvider jwtTokenProvider, CustomUserDetailsService userDetailsService) {
         this.jwtTokenProvider = jwtTokenProvider;
@@ -41,8 +47,7 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
                 }
             } catch (Exception e) {
                 SecurityContextHolder.clearContext();
-                response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
-                response.getWriter().write("{\"error\":\"Invalid token\"}");
+                sendErrorResponse(response, HttpStatus.UNAUTHORIZED, ErrorCode.AUTH_FAIL);
                 return;
             }
         }
@@ -56,5 +61,14 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
             return bearer.substring(7).trim();
         }
         return null;
+    }
+
+    private void sendErrorResponse(HttpServletResponse response, HttpStatus status, ErrorCode errorCode) 
+            throws IOException {
+        ApiRes<Void> errorResponse = ApiRes.failure(status, errorCode);
+        response.setStatus(status.value());
+        response.setContentType(MediaType.APPLICATION_JSON_VALUE);
+        response.setCharacterEncoding("UTF-8");
+        response.getWriter().write(objectMapper.writeValueAsString(errorResponse));
     }
 }
