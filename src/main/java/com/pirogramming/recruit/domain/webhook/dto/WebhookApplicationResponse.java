@@ -1,14 +1,15 @@
 package com.pirogramming.recruit.domain.webhook.dto;
 
+import java.time.LocalDateTime;
+import java.util.Map;
+
 import com.pirogramming.recruit.domain.googleform.entity.GoogleForm;
 import com.pirogramming.recruit.domain.webhook.entity.WebhookApplication;
+
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
-
-import java.time.LocalDateTime;
-import java.util.Map;
 
 @Getter
 @NoArgsConstructor
@@ -23,7 +24,7 @@ public class WebhookApplicationResponse {
     private String applicantName;
     private String applicantEmail;
     private String formResponseId;
-    private String submissionTimestamp;
+    private LocalDateTime submissionTimestamp;
 
     // 유연한 폼 데이터
     private Map<String, Object> formData;
@@ -41,22 +42,23 @@ public class WebhookApplicationResponse {
 
     // Entity를 DTO로 변환
     public static WebhookApplicationResponse from(WebhookApplication entity) {
+        GoogleForm googleForm = entity.getGoogleForm();
         return WebhookApplicationResponse.builder()
-                .id(entity.getId())
-                .googleFormId(entity.getGoogleForm().getId())
-                .formId(entity.getGoogleForm().getFormId())
-                .formTitle(entity.getGoogleForm().getTitle())
-                .applicantName(entity.getApplicantName())
-                .applicantEmail(entity.getApplicantEmail())
-                .formResponseId(entity.getFormResponseId())
-                .submissionTimestamp(entity.getSubmissionTimestamp())
-                .formData(entity.getFormData())
-                .status(entity.getStatus().name())
-                .errorMessage(entity.getErrorMessage())
-                .aiAnalysis(entity.getAiAnalysis())
-                .createdAt(entity.getCreatedAt())
-                .updatedAt(entity.getUpdatedAt())
-                .build();
+            .id(entity.getId())
+            .googleFormId(googleForm != null ? googleForm.getId() : null)
+            .formId(googleForm != null ? googleForm.getFormId() : null)
+            .formTitle(googleForm != null ? googleForm.getTitle() : null)
+            .applicantName(entity.getApplicantName())
+            .applicantEmail(entity.getApplicantEmail())
+            .formResponseId(entity.getFormResponseId())
+            .submissionTimestamp(entity.getSubmissionTimestamp())
+            .formData(entity.getFormData())
+            .status(entity.getStatus().name())
+            .errorMessage(entity.getErrorMessage())
+            .aiAnalysis(entity.getAiAnalysis())
+            .createdAt(entity.getCreatedAt())
+            .updatedAt(entity.getUpdatedAt())
+            .build();
     }
 
     // 특정 폼 데이터 값 조회 편의 메서드

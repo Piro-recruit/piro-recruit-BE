@@ -1,23 +1,31 @@
 package com.pirogramming.recruit.domain.webhook.controller;
 
+import java.util.List;
+import java.util.Map;
+
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.RestController;
+
 import com.pirogramming.recruit.domain.webhook.dto.WebhookApplicationRequest;
 import com.pirogramming.recruit.domain.webhook.dto.WebhookApplicationResponse;
 import com.pirogramming.recruit.domain.webhook.entity.WebhookApplication;
 import com.pirogramming.recruit.domain.webhook.service.WebhookApplicationService;
 import com.pirogramming.recruit.global.exception.ApiRes;
 import com.pirogramming.recruit.global.exception.code.ErrorCode;
+
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.http.HttpStatus;
-import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.*;
-
-import java.util.List;
-import java.util.Map;
 
 @RestController
 @RequestMapping("/api/webhook/applications")
@@ -72,7 +80,7 @@ public class WebhookApplicationController {
     @GetMapping("/form-id/{formId}")
     @Operation(summary = "폼 ID별 지원서 조회", description = "특정 폼 ID의 모든 지원서를 조회합니다.")
     public ResponseEntity<ApiRes<List<WebhookApplicationResponse>>> getApplicationsByFormId(
-            @Parameter(description = "구글 폼 ID") @PathVariable String formId) {
+        @Parameter(description = "구글 폼 식별자") @PathVariable String formId) {
 
         List<WebhookApplicationResponse> applications = webhookApplicationService.getApplicationsByFormId(formId);
 

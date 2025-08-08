@@ -1,5 +1,5 @@
 # --- 1단계: 빌드 스테이지 (Gradle 빌드)
-FROM gradle:8.5-jdk17 AS builder
+FROM gradle:8.5-jdk21 AS builder
 
 WORKDIR /home/app
 
@@ -17,7 +17,7 @@ COPY src ./src
 RUN gradle bootJar --no-daemon -x test
 
 # --- 2단계: 실행 스테이지 (최종 배포)
-FROM eclipse-temurin:17-jre AS runtime
+FROM eclipse-temurin:21-jre AS runtime
 
 # 한국어 로케일 설정 및 curl 설치 (헬스체크용)
 RUN apt-get update && \

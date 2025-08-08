@@ -1,26 +1,35 @@
 package com.pirogramming.recruit.domain.googleform.controller;
 
-import com.pirogramming.recruit.domain.webhook.entity.WebhookApplication;
-import com.pirogramming.recruit.domain.webhook.service.WebhookApplicationService;
+import java.util.List;
+import java.util.Map;
+import java.util.stream.Collectors;
+
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.RestController;
+
 import com.pirogramming.recruit.domain.googleform.dto.GoogleFormRequest;
 import com.pirogramming.recruit.domain.googleform.dto.GoogleFormResponse;
 import com.pirogramming.recruit.domain.googleform.entity.GoogleForm;
 import com.pirogramming.recruit.domain.googleform.service.GoogleFormService;
+import com.pirogramming.recruit.domain.webhook.entity.WebhookApplication;
+import com.pirogramming.recruit.domain.webhook.service.WebhookApplicationService;
 import com.pirogramming.recruit.global.exception.ApiRes;
 import com.pirogramming.recruit.global.exception.code.ErrorCode;
+
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.http.HttpStatus;
-import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.*;
-
-import java.util.List;
-import java.util.Map;
-import java.util.stream.Collectors;
 
 @RestController
 @RequestMapping("/api/google-forms")
@@ -31,6 +40,18 @@ public class GoogleFormController {
 
     private final GoogleFormService googleFormService;
     private final WebhookApplicationService webhookApplicationService;
+
+    // 공통: 지원서 개수와 함께 응답 생성
+    private GoogleFormResponse buildResponseWithApplicationCount(GoogleForm googleForm, Map<Long, Long> applicationCountMap) {
+        Long count = applicationCountMap.getOrDefault(googleForm.getId(), 0L);
+        return GoogleFormResponse.fromWithApplicationCount(googleForm, count);
+    }
+
+    // 공통: 지원서 개수와 함께 응답 생성 (단일)
+    private GoogleFormResponse buildResponseWithApplicationCount(GoogleForm googleForm) {
+        long count = webhookApplicationService.getApplicationCountByGoogleForm(googleForm.getId());
+        return GoogleFormResponse.fromWithApplicationCount(googleForm, count);
+    }
 
     // 새 구글 폼 생성
     @PostMapping
@@ -57,11 +78,14 @@ public class GoogleFormController {
 
         List<GoogleFormResponse> responses;
         if (includeApplicationCount) {
+            // 배치 쿼리로 N+1 문제 해결
+            List<Long> googleFormIds = googleForms.stream()
+                    .map(GoogleForm::getId)
+                    .collect(Collectors.toList());
+            Map<Long, Long> applicationCountMap = webhookApplicationService.getApplicationCountsByGoogleForms(googleFormIds);
+
             responses = googleForms.stream()
-                    .map(googleForm -> {
-                        long count = webhookApplicationService.getApplicationCountByGoogleForm(googleForm.getId());
-                        return GoogleFormResponse.fromWithApplicationCount(googleForm, count);
-                    })
+                    .map(googleForm -> buildResponseWithApplicationCount(googleForm, applicationCountMap))
                     .collect(Collectors.toList());
         } else {
             responses = googleForms.stream()
@@ -83,13 +107,9 @@ public class GoogleFormController {
 
         return googleFormService.getGoogleFormById(id)
                 .map(googleForm -> {
-                    GoogleFormResponse response;
-                    if (includeApplicationCount) {
-                        long count = webhookApplicationService.getApplicationCountByGoogleForm(googleForm.getId());
-                        response = GoogleFormResponse.fromWithApplicationCount(googleForm, count);
-                    } else {
-                        response = GoogleFormResponse.from(googleForm);
-                    }
+                    GoogleFormResponse response = includeApplicationCount ?
+                            buildResponseWithApplicationCount(googleForm) :
+                            GoogleFormResponse.from(googleForm);
                     return ResponseEntity.ok(ApiRes.success(response));
                 })
                 .orElse(ResponseEntity.status(HttpStatus.NOT_FOUND)
@@ -105,13 +125,9 @@ public class GoogleFormController {
 
         return googleFormService.getGoogleFormByFormId(formId)
                 .map(googleForm -> {
-                    GoogleFormResponse response;
-                    if (includeApplicationCount) {
-                        long count = webhookApplicationService.getApplicationCountByGoogleForm(googleForm.getId());
-                        response = GoogleFormResponse.fromWithApplicationCount(googleForm, count);
-                    } else {
-                        response = GoogleFormResponse.from(googleForm);
-                    }
+                    GoogleFormResponse response = includeApplicationCount ?
+                            buildResponseWithApplicationCount(googleForm) :
+                            GoogleFormResponse.from(googleForm);
                     return ResponseEntity.ok(ApiRes.success(response));
                 })
                 .orElse(ResponseEntity.status(HttpStatus.NOT_FOUND)
@@ -125,8 +141,7 @@ public class GoogleFormController {
 
         return googleFormService.getActiveGoogleForm()
                 .map(googleForm -> {
-                    long count = webhookApplicationService.getApplicationCountByGoogleForm(googleForm.getId());
-                    GoogleFormResponse response = GoogleFormResponse.fromWithApplicationCount(googleForm, count);
+                    GoogleFormResponse response = buildResponseWithApplicationCount(googleForm);
                     return ResponseEntity.ok(ApiRes.success(response));
                 })
                 .orElse(ResponseEntity.status(HttpStatus.NOT_FOUND)
@@ -139,11 +154,15 @@ public class GoogleFormController {
     public ResponseEntity<ApiRes<List<GoogleFormResponse>>> getActiveGoogleForms() {
 
         List<GoogleForm> googleForms = googleFormService.getActiveGoogleForms();
+        
+        // 배치 쿼리로 N+1 문제 해결
+        List<Long> googleFormIds = googleForms.stream()
+                .map(GoogleForm::getId)
+                .collect(Collectors.toList());
+        Map<Long, Long> applicationCountMap = webhookApplicationService.getApplicationCountsByGoogleForms(googleFormIds);
+        
         List<GoogleFormResponse> responses = googleForms.stream()
-                .map(googleForm -> {
-                    long count = webhookApplicationService.getApplicationCountByGoogleForm(googleForm.getId());
-                    return GoogleFormResponse.fromWithApplicationCount(googleForm, count);
-                })
+                .map(googleForm -> buildResponseWithApplicationCount(googleForm, applicationCountMap))
                 .collect(Collectors.toList());
 
         return ResponseEntity.ok(
@@ -160,8 +179,7 @@ public class GoogleFormController {
         log.info("구글 폼 활성화 요청 - ID: {}", id);
 
         GoogleForm googleForm = googleFormService.activateGoogleForm(id);
-        long count = webhookApplicationService.getApplicationCountByGoogleForm(googleForm.getId());
-        GoogleFormResponse response = GoogleFormResponse.fromWithApplicationCount(googleForm, count);
+        GoogleFormResponse response = buildResponseWithApplicationCount(googleForm);
 
         return ResponseEntity.ok(
                 ApiRes.success(response, "구글 폼이 활성화되었습니다.")
@@ -177,8 +195,7 @@ public class GoogleFormController {
         log.info("구글 폼 비활성화 요청 - ID: {}", id);
 
         GoogleForm googleForm = googleFormService.deactivateGoogleForm(id);
-        long count = webhookApplicationService.getApplicationCountByGoogleForm(googleForm.getId());
-        GoogleFormResponse response = GoogleFormResponse.fromWithApplicationCount(googleForm, count);
+        GoogleFormResponse response = buildResponseWithApplicationCount(googleForm);
 
         return ResponseEntity.ok(
                 ApiRes.success(response, "구글 폼이 비활성화되었습니다.")

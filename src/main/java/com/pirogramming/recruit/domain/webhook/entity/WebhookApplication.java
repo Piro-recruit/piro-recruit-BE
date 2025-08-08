@@ -1,18 +1,36 @@
 package com.pirogramming.recruit.domain.webhook.entity;
 
+import java.time.LocalDateTime;
+import java.util.Map;
+
+import org.hibernate.annotations.JdbcTypeCode;
+import org.hibernate.type.SqlTypes;
+
 import com.pirogramming.recruit.domain.googleform.entity.GoogleForm;
 import com.pirogramming.recruit.global.entity.BaseTimeEntity;
-import jakarta.persistence.*;
+
+import jakarta.persistence.Column;
+import jakarta.persistence.Entity;
+import jakarta.persistence.EnumType;
+import jakarta.persistence.Enumerated;
+import jakarta.persistence.FetchType;
+import jakarta.persistence.GeneratedValue;
+import jakarta.persistence.GenerationType;
+import jakarta.persistence.Id;
+import jakarta.persistence.JoinColumn;
+import jakarta.persistence.ManyToOne;
+import jakarta.persistence.Table;
+import jakarta.persistence.UniqueConstraint;
 import lombok.AccessLevel;
 import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
-import org.hibernate.annotations.JdbcTypeCode;
-import org.hibernate.type.SqlTypes;
-import java.util.Map;
 
 @Entity
-@Table(name = "webhook_applications")
+@Table(name = "webhook_applications",
+    uniqueConstraints = {
+        @UniqueConstraint(columnNames = {"google_form_id", "applicant_email"})
+    })
 @Getter
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 public class WebhookApplication extends BaseTimeEntity {
@@ -30,14 +48,14 @@ public class WebhookApplication extends BaseTimeEntity {
     @Column(nullable = false)
     private String applicantName; // 지원자 이름
 
-    @Column(nullable = false, unique = true)
+    @Column(nullable = false)
     private String applicantEmail; // 지원자 이메일(중복 방지용)
 
-    @Column(nullable = false)
+    @Column(nullable = false, unique = true)
     private String formResponseId; // 구글 폼 응답 고유 ID
 
     @Column(nullable = false)
-    private String submissionTimestamp; // 구글 폼 제출 시간
+    private LocalDateTime submissionTimestamp; // 구글 폼 제출 시간
 
     // 유연한 필드 (JSON으로 저장)
     @JdbcTypeCode(SqlTypes.JSON)
@@ -59,7 +77,7 @@ public class WebhookApplication extends BaseTimeEntity {
 
     @Builder
     public WebhookApplication(GoogleForm googleForm, String applicantName, String applicantEmail,
-                              String formResponseId, String submissionTimestamp, Map<String, Object> formData) {
+                              String formResponseId, LocalDateTime submissionTimestamp, Map<String, Object> formData) {
         this.googleForm = googleForm;
         this.applicantName = applicantName;
         this.applicantEmail = applicantEmail;

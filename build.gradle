@@ -9,7 +9,7 @@ version = '0.0.1-SNAPSHOT'
 
 java {
 	toolchain {
-		languageVersion = JavaLanguageVersion.of(17)
+		languageVersion = JavaLanguageVersion.of(21)
 	}
 }
 
@@ -91,6 +91,16 @@ dependencies {
 	implementation "org.apache.poi:poi:${poiVersion}"
 	implementation "org.apache.poi:poi-ooxml:${poiVersion}"
 	implementation "org.apache.commons:commons-csv:${csvVersion}"
+
+	// 메일 전송 위한 라이브러리 추가
+	implementation 'org.springframework.boot:spring-boot-starter-mail'
+
+	// 예제에서 확인을 위한 타임리프 추가 (필요하지 않다면 넣지 않아도 됨)
+	implementation 'org.springframework.boot:spring-boot-starter-thymeleaf'
+
+	// Markdown 처리를 위한 라이브러리
+	implementation 'org.commonmark:commonmark:0.21.0'
+	implementation 'org.commonmark:commonmark-ext-gfm-tables:0.21.0'
 }
 
 tasks.named('test') {
