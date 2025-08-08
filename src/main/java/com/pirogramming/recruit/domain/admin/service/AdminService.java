@@ -1,5 +1,7 @@
 package com.pirogramming.recruit.domain.admin.service;
 
+import com.pirogramming.recruit.domain.admin.dto.CreateGeneralAdminRequest;
+import com.pirogramming.recruit.domain.admin.dto.GeneralAdminResponse;
 import com.pirogramming.recruit.domain.admin.dto.LoginRequest;
 import com.pirogramming.recruit.domain.admin.dto.LoginResponse;
 import com.pirogramming.recruit.domain.admin.entity.Admin;
@@ -14,6 +16,10 @@ import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
+
+import java.util.List;
+import java.util.UUID;
+import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
@@ -69,5 +75,64 @@ public class AdminService {
         refreshTokenRepository.save(new RefreshToken(admin.getId(), newRefreshToken));
 
         return new LoginResponse(newAccessToken, newRefreshToken);
+    }
+
+    @Transactional
+    public GeneralAdminResponse createGeneralAdmin(CreateGeneralAdminRequest request) {
+        // 고유한 로그인 코드 생성 (UUID 기반)
+        String loginCode = UUID.randomUUID().toString().substring(0, 8).toUpperCase();
+        
+        // 중복 체크 (매우 낮은 확률이지만)
+        while (adminRepository.findByLoginCode(loginCode).isPresent()) {
+            loginCode = UUID.randomUUID().toString().substring(0, 8).toUpperCase();
+        }
+
+        Admin admin = Admin.builder()
+                .loginCode(loginCode)
+                .identifierName(request.getIdentifierName())
+                .role(AdminRole.GENERAL)
+                .expiredAt(request.getExpiredAt())
+                .build();
+
+        Admin saved = adminRepository.save(admin);
+        return new GeneralAdminResponse(saved);
+    }
+
+    @Transactional
+    public List<GeneralAdminResponse> getAllGeneralAdmins() {
+        return adminRepository.findAll().stream()
+                .filter(admin -> admin.getRole() == AdminRole.GENERAL)
+                .map(GeneralAdminResponse::new)
+                .collect(Collectors.toList());
+    }
+
+    @Transactional
+    public void deleteExpiredGeneralAdmins() {
+        List<Admin> expiredAdmins = adminRepository.findAll().stream()
+                .filter(Admin::isExpired)
+                .collect(Collectors.toList());
+        
+        // 관련된 RefreshToken들 먼저 삭제
+        for (Admin admin : expiredAdmins) {
+            refreshTokenRepository.deleteByAdminId(admin.getId());
+        }
+        
+        // 만료된 Admin 삭제
+        adminRepository.deleteAll(expiredAdmins);
+    }
+
+    @Transactional
+    public void deleteAllGeneralAdmins() {
+        List<Admin> generalAdmins = adminRepository.findAll().stream()
+                .filter(admin -> admin.getRole() == AdminRole.GENERAL)
+                .collect(Collectors.toList());
+        
+        // 관련된 RefreshToken들 먼저 삭제
+        for (Admin admin : generalAdmins) {
+            refreshTokenRepository.deleteByAdminId(admin.getId());
+        }
+        
+        // 모든 General Admin 삭제
+        adminRepository.deleteAll(generalAdmins);
     }
 }
