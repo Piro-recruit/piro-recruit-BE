@@ -20,6 +20,11 @@ pipeline {
         DB_NAME = 'app_user'
         DB_USERNAME = credentials('DB_USERNAME')
         DB_PASSWORD = credentials('DB_PASSWORD')
+
+        // API Keys 및 기타 환경변수
+        OPENAI_API_KEY = credentials('OPENAI_API_KEY')
+        STMP_USER_ID = credentials('STMP_USER_ID')
+        STMP_PASSWORD = credentials('STMP_PASSWORD')
     }
 
     stages {
@@ -172,10 +177,13 @@ pipeline {
                                     -e SPRING_DATASOURCE_URL=jdbc:postgresql://${DB_HOST}:5432/${DB_NAME} \\
                                     -e SPRING_DATASOURCE_USERNAME=${DB_USERNAME} \\
                                     -e SPRING_DATASOURCE_PASSWORD=${DB_PASSWORD} \\
-                                    -e SPRING_JPA_HIBERNATE_DDL_AUTO=update \\
+                                    -e SPRING_JPA_HIBERNATE_DDL_AUTO=validate \\
                                     -e SPRING_JPA_SHOW_SQL=false \\
                                     -e SPRING_PROFILES_ACTIVE=prod \\
                                     -e LOGGING_LEVEL_ROOT=INFO \\
+                                    -e OPENAI_API_KEY=${OPENAI_API_KEY} \\
+                                    -e STMP_USER_ID=${STMP_USER_ID} \\
+                                    -e STMP_PASSWORD=${STMP_PASSWORD} \\
                                     -e JAVA_OPTS="-Xmx256m -XX:+UseG1GC" \\
                                     ${DOCKER_IMAGE}:${DOCKER_TAG}
 
