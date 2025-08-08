@@ -6,6 +6,7 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.config.annotation.authentication.configuration.AuthenticationConfiguration;
+import org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
 import org.springframework.security.config.annotation.web.configurers.AbstractHttpConfigurer;
@@ -13,16 +14,24 @@ import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.web.SecurityFilterChain;
+import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
 import org.springframework.web.cors.CorsConfiguration;
+
+import com.pirogramming.recruit.domain.admin.service.CustomUserDetailsService;
+import com.pirogramming.recruit.global.jwt.JwtAuthenticationFilter;
+import com.pirogramming.recruit.global.jwt.JwtTokenProvider;
 
 import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
 
 @Configuration
 @EnableWebSecurity
+@EnableMethodSecurity(prePostEnabled = true)
 @RequiredArgsConstructor
 public class SecurityConfig {
 
+	private final JwtTokenProvider jwtTokenProvider;
+	private final CustomUserDetailsService customUserDetailsService;
 
 	@Bean
 	public AuthenticationManager authenticationManager(AuthenticationConfiguration config) throws Exception {
@@ -35,17 +44,12 @@ public class SecurityConfig {
 	}
 
 	@Bean
-	public SecurityFilterChain securityFilterChain(HttpSecurity http, AuthenticationManager authManager) throws
-		Exception {
-
-		// LoginFilter loginFilter = new LoginFilter(refreshTokenRepository, authManager, jwtTokenProvider, objectMapper, attendanceService);
-		// loginFilter.setFilterProcessesUrl("/api/auth/login");
+	public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
 
 		http
 			.csrf(AbstractHttpConfigurer::disable)
 			.formLogin(AbstractHttpConfigurer::disable)
 			.httpBasic(AbstractHttpConfigurer::disable)
-
 			.cors(cors -> cors.configurationSource(request -> {
 				CorsConfiguration config = new CorsConfiguration();
 				config.setAllowedOriginPatterns(List.of("*"));
@@ -56,21 +60,19 @@ public class SecurityConfig {
 				config.setMaxAge(3600L);
 				return config;
 			}))
-
-			.sessionManagement(session -> session
-				.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
-
+			.sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
 			.authorizeHttpRequests(auth -> auth
-				.anyRequest().permitAll())
-
+				.requestMatchers("/api/admin/login", "/api/admin/refresh").permitAll()
+				.requestMatchers("/swagger-ui/**", "/v3/api-docs/**", "/swagger-ui.html").permitAll()
+				.anyRequest().authenticated()
+			)
 			.exceptionHandling(except -> except
 				.authenticationEntryPoint((request, response, authException) ->
-					response.sendError(HttpServletResponse.SC_UNAUTHORIZED, "Unauthorized")));
+					response.sendError(HttpServletResponse.SC_UNAUTHORIZED, "Unauthorized"))
+			);
 
-		// http.addFilterBefore(loginFilter, UsernamePasswordAuthenticationFilter.class);
-		// http.addFilterBefore(new JwtAuthenticationFilter(jwtTokenProvider, customUserDetailsService),
-		// 	UsernamePasswordAuthenticationFilter.class);
-		//
+		http.addFilterBefore(new JwtAuthenticationFilter(jwtTokenProvider, customUserDetailsService),
+			UsernamePasswordAuthenticationFilter.class);
 
 		return http.build();
 	}

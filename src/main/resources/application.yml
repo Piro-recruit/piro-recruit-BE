@@ -53,6 +53,13 @@ logging:
     com.ayu.realty: debug
     org.springframework.security: debug
 
+jwt:
+  secret: ${JWT_SECRET}
+
+admin:
+  root:
+    login-code: ${ROOT_ADMIN_LOGIN_CODE}
+
 openai:
   api:
     key: ${OPENAI_API_KEY}
