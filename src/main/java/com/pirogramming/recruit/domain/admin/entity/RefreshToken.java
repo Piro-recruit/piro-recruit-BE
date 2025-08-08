@@ -1,8 +1,16 @@
 package com.pirogramming.recruit.domain.admin.entity;
 
-import jakarta.persistence.*;
-import lombok.*;
 import java.time.LocalDateTime;
+
+import jakarta.persistence.Entity;
+import jakarta.persistence.GeneratedValue;
+import jakarta.persistence.GenerationType;
+import jakarta.persistence.Id;
+import lombok.AccessLevel;
+import lombok.AllArgsConstructor;
+import lombok.Builder;
+import lombok.Getter;
+import lombok.NoArgsConstructor;
 
 @Entity
 @Getter
@@ -18,7 +26,7 @@ public class RefreshToken {
     private Long adminId;
 
     private String token;
-    
+
     @Builder.Default
     private LocalDateTime createdAt = LocalDateTime.now();
 
@@ -32,7 +40,7 @@ public class RefreshToken {
         this.token = newToken;
         this.createdAt = LocalDateTime.now();
     }
-    
+
     public boolean isExpired() {
         // 7일 후 만료
         return createdAt.plusDays(7).isBefore(LocalDateTime.now());

@@ -1,9 +1,10 @@
 package com.pirogramming.recruit.domain.admin.repository;
 
-import com.pirogramming.recruit.domain.admin.entity.RefreshToken;
+import java.util.Optional;
+
 import org.springframework.data.jpa.repository.JpaRepository;
 
-import java.util.Optional;
+import com.pirogramming.recruit.domain.admin.entity.RefreshToken;
 
 public interface RefreshTokenRepository extends JpaRepository<RefreshToken, Long> {
     Optional<RefreshToken> findByAdminId(Long adminId);

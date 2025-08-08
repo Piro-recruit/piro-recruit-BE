@@ -1,13 +1,7 @@
 package com.pirogramming.recruit.global.jwt;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.pirogramming.recruit.domain.admin.service.CustomUserDetailsService;
-import com.pirogramming.recruit.global.exception.ApiRes;
-import com.pirogramming.recruit.global.exception.code.ErrorCode;
-import jakarta.servlet.FilterChain;
-import jakarta.servlet.ServletException;
-import jakarta.servlet.http.HttpServletRequest;
-import jakarta.servlet.http.HttpServletResponse;
+import java.io.IOException;
+
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
@@ -15,7 +9,15 @@ import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.util.StringUtils;
 import org.springframework.web.filter.OncePerRequestFilter;
 
-import java.io.IOException;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.pirogramming.recruit.domain.admin.service.CustomUserDetailsService;
+import com.pirogramming.recruit.global.exception.ApiRes;
+import com.pirogramming.recruit.global.exception.code.ErrorCode;
+
+import jakarta.servlet.FilterChain;
+import jakarta.servlet.ServletException;
+import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletResponse;
 
 public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
@@ -30,7 +32,7 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
     @Override
     protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response,
-                                    FilterChain filterChain) throws ServletException, IOException {
+        FilterChain filterChain) throws ServletException, IOException {
 
         String token = resolveToken(request);
 
@@ -38,11 +40,11 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
             try {
                 if (jwtTokenProvider.validateToken(token)) {
                     Long adminId = jwtTokenProvider.getAdminIdFromToken(token);
-                    
+
                     var userDetails = userDetailsService.loadUserById(adminId);
                     var authentication = new UsernamePasswordAuthenticationToken(
-                            userDetails, null, userDetails.getAuthorities());
-                    
+                        userDetails, null, userDetails.getAuthorities());
+
                     SecurityContextHolder.getContext().setAuthentication(authentication);
                 }
             } catch (Exception e) {
@@ -63,8 +65,8 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
         return null;
     }
 
-    private void sendErrorResponse(HttpServletResponse response, HttpStatus status, ErrorCode errorCode) 
-            throws IOException {
+    private void sendErrorResponse(HttpServletResponse response, HttpStatus status, ErrorCode errorCode)
+        throws IOException {
         ApiRes<Void> errorResponse = ApiRes.failure(status, errorCode);
         response.setStatus(status.value());
         response.setContentType(MediaType.APPLICATION_JSON_VALUE);

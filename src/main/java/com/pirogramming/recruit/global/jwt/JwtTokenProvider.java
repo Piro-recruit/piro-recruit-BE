@@ -1,21 +1,28 @@
 package com.pirogramming.recruit.global.jwt;
 
-import com.pirogramming.recruit.domain.admin.entity.AdminRole;
-import io.jsonwebtoken.*;
-import io.jsonwebtoken.security.Keys;
+import java.nio.charset.StandardCharsets;
+import java.util.Date;
+
+import javax.crypto.SecretKey;
+
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 
-import javax.crypto.SecretKey;
-import java.nio.charset.StandardCharsets;
-import java.util.Date;
+import com.pirogramming.recruit.domain.admin.entity.AdminRole;
+
+import io.jsonwebtoken.Claims;
+import io.jsonwebtoken.ExpiredJwtException;
+import io.jsonwebtoken.JwtException;
+import io.jsonwebtoken.Jwts;
+import io.jsonwebtoken.SignatureAlgorithm;
+import io.jsonwebtoken.security.Keys;
 
 @Component
 public class JwtTokenProvider {
 
     @Value("${jwt.secret}")
     private String secretKey;
-    
+
     private SecretKey getSigningKey() {
         byte[] keyBytes = secretKey.getBytes(StandardCharsets.UTF_8);
         return Keys.hmacShaKeyFor(keyBytes);
@@ -31,12 +38,12 @@ public class JwtTokenProvider {
         Date expiryDate = new Date(now.getTime() + ACCESS_TOKEN_EXPIRATION);
 
         return Jwts.builder()
-                .setSubject(String.valueOf(adminId))
-                .claim("role", role.name())
-                .setIssuedAt(now)
-                .setExpiration(expiryDate)
-                .signWith(getSigningKey(), SignatureAlgorithm.HS512)
-                .compact();
+            .setSubject(String.valueOf(adminId))
+            .claim("role", role.name())
+            .setIssuedAt(now)
+            .setExpiration(expiryDate)
+            .signWith(getSigningKey(), SignatureAlgorithm.HS512)
+            .compact();
     }
 
     // Refresh Token 생성
@@ -45,20 +52,20 @@ public class JwtTokenProvider {
         Date expiryDate = new Date(now.getTime() + REFRESH_TOKEN_EXPIRATION);
 
         return Jwts.builder()
-                .setSubject(String.valueOf(adminId))
-                .setIssuedAt(now)
-                .setExpiration(expiryDate)
-                .signWith(getSigningKey(), SignatureAlgorithm.HS512)
-                .compact();
+            .setSubject(String.valueOf(adminId))
+            .setIssuedAt(now)
+            .setExpiration(expiryDate)
+            .signWith(getSigningKey(), SignatureAlgorithm.HS512)
+            .compact();
     }
 
     // 토큰 유효성 검사
     public boolean validateToken(String token) {
         try {
             Jwts.parserBuilder()
-                    .setSigningKey(getSigningKey())
-                    .build()
-                    .parseClaimsJws(token);
+                .setSigningKey(getSigningKey())
+                .build()
+                .parseClaimsJws(token);
             return true;
         } catch (ExpiredJwtException e) {
             // 만료된 경우
@@ -72,20 +79,20 @@ public class JwtTokenProvider {
     // 토큰에서 adminId 꺼내기
     public Long getAdminIdFromToken(String token) {
         Claims claims = Jwts.parserBuilder()
-                .setSigningKey(getSigningKey())
-                .build()
-                .parseClaimsJws(token)
-                .getBody();
+            .setSigningKey(getSigningKey())
+            .build()
+            .parseClaimsJws(token)
+            .getBody();
         return Long.parseLong(claims.getSubject());
     }
 
     // 토큰에서 역할(Role) 꺼내기
     public String getRoleFromToken(String token) {
         Claims claims = Jwts.parserBuilder()
-                .setSigningKey(getSigningKey())
-                .build()
-                .parseClaimsJws(token)
-                .getBody();
+            .setSigningKey(getSigningKey())
+            .build()
+            .parseClaimsJws(token)
+            .getBody();
         return (String) claims.get("role");
     }
 
@@ -93,11 +100,11 @@ public class JwtTokenProvider {
     public boolean isTokenExpired(String token) {
         try {
             Date expiration = Jwts.parserBuilder()
-                    .setSigningKey(getSigningKey())
-                    .build()
-                    .parseClaimsJws(token)
-                    .getBody()
-                    .getExpiration();
+                .setSigningKey(getSigningKey())
+                .build()
+                .parseClaimsJws(token)
+                .getBody()
+                .getExpiration();
             return expiration.before(new Date());
         } catch (ExpiredJwtException e) {
             return true;

@@ -1,10 +1,7 @@
 package com.pirogramming.recruit.global.config;
 
-import com.pirogramming.recruit.global.jwt.JwtAuthenticationFilter;
-import com.pirogramming.recruit.global.jwt.JwtTokenProvider;
-import com.pirogramming.recruit.domain.admin.service.CustomUserDetailsService;
-import jakarta.servlet.http.HttpServletResponse;
-import lombok.RequiredArgsConstructor;
+import java.util.List;
+
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.security.authentication.AuthenticationManager;
@@ -20,7 +17,12 @@ import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
 import org.springframework.web.cors.CorsConfiguration;
 
-import java.util.List;
+import com.pirogramming.recruit.domain.admin.service.CustomUserDetailsService;
+import com.pirogramming.recruit.global.jwt.JwtAuthenticationFilter;
+import com.pirogramming.recruit.global.jwt.JwtTokenProvider;
+
+import jakarta.servlet.http.HttpServletResponse;
+import lombok.RequiredArgsConstructor;
 
 @Configuration
 @EnableWebSecurity
@@ -45,32 +47,32 @@ public class SecurityConfig {
 	public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
 
 		http
-				.csrf(AbstractHttpConfigurer::disable)
-				.formLogin(AbstractHttpConfigurer::disable)
-				.httpBasic(AbstractHttpConfigurer::disable)
-				.cors(cors -> cors.configurationSource(request -> {
-					CorsConfiguration config = new CorsConfiguration();
-					config.setAllowedOriginPatterns(List.of("*"));
-					config.setAllowedMethods(List.of("GET", "POST", "PUT", "DELETE", "OPTIONS"));
-					config.setAllowCredentials(true);
-					config.setAllowedHeaders(List.of("*"));
-					config.setExposedHeaders(List.of("Authorization"));
-					config.setMaxAge(3600L);
-					return config;
-				}))
-				.sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
-				.authorizeHttpRequests(auth -> auth
-						.requestMatchers("/api/admin/login", "/api/admin/refresh").permitAll()
-						.requestMatchers("/swagger-ui/**", "/v3/api-docs/**", "/swagger-ui.html").permitAll()
-						.anyRequest().authenticated()
-				)
-				.exceptionHandling(except -> except
-						.authenticationEntryPoint((request, response, authException) ->
-								response.sendError(HttpServletResponse.SC_UNAUTHORIZED, "Unauthorized"))
-				);
+			.csrf(AbstractHttpConfigurer::disable)
+			.formLogin(AbstractHttpConfigurer::disable)
+			.httpBasic(AbstractHttpConfigurer::disable)
+			.cors(cors -> cors.configurationSource(request -> {
+				CorsConfiguration config = new CorsConfiguration();
+				config.setAllowedOriginPatterns(List.of("*"));
+				config.setAllowedMethods(List.of("GET", "POST", "PUT", "DELETE", "OPTIONS"));
+				config.setAllowCredentials(true);
+				config.setAllowedHeaders(List.of("*"));
+				config.setExposedHeaders(List.of("Authorization"));
+				config.setMaxAge(3600L);
+				return config;
+			}))
+			.sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
+			.authorizeHttpRequests(auth -> auth
+				.requestMatchers("/api/admin/login", "/api/admin/refresh").permitAll()
+				.requestMatchers("/swagger-ui/**", "/v3/api-docs/**", "/swagger-ui.html").permitAll()
+				.anyRequest().authenticated()
+			)
+			.exceptionHandling(except -> except
+				.authenticationEntryPoint((request, response, authException) ->
+					response.sendError(HttpServletResponse.SC_UNAUTHORIZED, "Unauthorized"))
+			);
 
 		http.addFilterBefore(new JwtAuthenticationFilter(jwtTokenProvider, customUserDetailsService),
-				UsernamePasswordAuthenticationFilter.class);
+			UsernamePasswordAuthenticationFilter.class);
 
 		return http.build();
 	}
