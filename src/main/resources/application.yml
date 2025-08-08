@@ -45,7 +45,7 @@ logging:
     com.ayu.realty: DEBUG
 
 jwt:
-  secret: my-jwt-secret-key
+  secret: ${JWT_SECRET}
 openai:
   api:
     key: ${OPENAI_API_KEY}

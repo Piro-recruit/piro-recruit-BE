@@ -23,7 +23,7 @@ public class Admin {
     private LocalDateTime expiredAt;
 
     public boolean isExpired() {
-        return role == AdminRole.GENERAL && expiredAt.isBefore(LocalDateTime.now());
+        return role == AdminRole.GENERAL && expiredAt != null && expiredAt.isBefore(LocalDateTime.now());
     }
 
     public boolean isRoot() {

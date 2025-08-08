@@ -3,6 +3,7 @@ package com.pirogramming.recruit.domain.admin.service;
 import com.pirogramming.recruit.domain.admin.entity.Admin;
 import lombok.Getter;
 import org.springframework.security.core.GrantedAuthority;
+import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.userdetails.UserDetails;
 
 import java.util.Collection;
@@ -19,7 +20,7 @@ public class CustomUserDetails implements UserDetails {
 
     @Override
     public Collection<? extends GrantedAuthority> getAuthorities() {
-        return Collections.emptyList(); // 권한이 필요할 경우 추가
+        return Collections.singletonList(new SimpleGrantedAuthority("ROLE_" + admin.getRole().name()));
     }
 
     @Override

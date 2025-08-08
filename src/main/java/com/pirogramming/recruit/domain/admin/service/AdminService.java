@@ -28,6 +28,9 @@ public class AdminService {
                 .orElseThrow(() -> new RecruitException(HttpStatus.UNAUTHORIZED, ErrorCode.INVALID_LOGIN_CODE));
 
         if (admin.getRole() == AdminRole.GENERAL && admin.isExpired()) {
+            // RefreshToken 먼저 삭제
+            refreshTokenRepository.deleteByAdminId(admin.getId());
+            // Admin 삭제
             adminRepository.delete(admin);
             throw new RecruitException(HttpStatus.FORBIDDEN, ErrorCode.EXPIRED_ADMIN);
         }
@@ -43,14 +46,28 @@ public class AdminService {
         return new LoginResponse(accessToken, refreshToken);
     }
 
+    @Transactional
     public LoginResponse reissue(String refreshToken) {
         RefreshToken saved = refreshTokenRepository.findByToken(refreshToken)
                 .orElseThrow(() -> new RecruitException(HttpStatus.UNAUTHORIZED, ErrorCode.INVALID_REFRESH_TOKEN));
 
+        // RefreshToken 만료 검증
+        if (saved.isExpired()) {
+            refreshTokenRepository.delete(saved);
+            throw new RecruitException(HttpStatus.UNAUTHORIZED, ErrorCode.INVALID_REFRESH_TOKEN);
+        }
+
         Admin admin = adminRepository.findById(saved.getAdminId())
                 .orElseThrow(() -> new RecruitException(HttpStatus.NOT_FOUND, ErrorCode.ADMIN_NOT_FOUND));
 
+        // Token Rotation: 새로운 Access Token과 Refresh Token 모두 발급
         String newAccessToken = jwtTokenProvider.generateAccessToken(admin.getId(), admin.getRole());
-        return new LoginResponse(newAccessToken, refreshToken); // refreshToken은 그대로
+        String newRefreshToken = jwtTokenProvider.generateRefreshToken(admin.getId());
+
+        // 기존 RefreshToken 삭제하고 새로운 RefreshToken 저장
+        refreshTokenRepository.deleteByAdminId(admin.getId());
+        refreshTokenRepository.save(new RefreshToken(admin.getId(), newRefreshToken));
+
+        return new LoginResponse(newAccessToken, newRefreshToken);
     }
 }
