@@ -69,5 +69,4 @@ public class GlobalExceptionHandler {
 			.body(ApiRes.failure(HttpStatus.INTERNAL_SERVER_ERROR, ErrorCode.INTERNAL_ERROR));
 	}
 
-
 }
