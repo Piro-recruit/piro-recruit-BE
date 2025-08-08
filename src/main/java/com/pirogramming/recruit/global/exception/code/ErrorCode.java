@@ -18,15 +18,24 @@ public enum ErrorCode {
 	// --- 도메인 기반 상세 오류 ---
 	MEMBER_NOT_FOUND(2001, "해당 사용자를 찾을 수 없습니다."),
 
+	// --- 구글폼 관련 오류 ---
+	GOOGLE_FORM_NOT_FOUND(2201, "해당 구글 폼을 찾을 수 없습니다."),
+	GOOGLE_FORM_NOT_ACTIVE(2202, "현재 활성화된 구글 폼이 없습니다."),
+	GOOGLE_FORM_DUPLICATE_FORM_ID(2203, "이미 등록된 구글폼 ID입니다."),
 
 	// -- admin 로그인 관련 오류 --
 	INVALID_LOGIN_CODE(3001, "로그인 코드가 유효하지 않습니다."),
 	EXPIRED_ADMIN(3002, "해당 관리자는 리쿠르팅 기간이 만료되어 삭제되었습니다."),
 	INVALID_REFRESH_TOKEN(3003, "유효하지 않은 리프레시 토큰입니다."),
-	ADMIN_NOT_FOUND(3004, "해당 관리자를 찾을 수 없습니다.");
+	ADMIN_NOT_FOUND(3004, "해당 관리자를 찾을 수 없습니다."),
 
 
 
+	// --- 웹훅 관련 오류 (새로 추가) ---
+	WEBHOOK_DUPLICATE_FORM_RESPONSE(3001, "이미 처리된 구글 폼 응답입니다."),
+	WEBHOOK_DUPLICATE_EMAIL(3002, "이미 지원서가 제출된 이메일입니다."),
+	WEBHOOK_APPLICATION_NOT_FOUND(3003, "해당 지원서를 찾을 수 없습니다."),
+	WEBHOOK_PROCESSING_FAILED(3004, "웹훅 데이터 처리에 실패했습니다.");
 
 	private final int code;
 	private final String message;

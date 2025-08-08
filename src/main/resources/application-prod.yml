@@ -2,8 +2,8 @@
 
 spring:
   datasource:
-    url: jdbc:postgresql://${DB_HOST:34.64.113.7}:5432/piro-recruit
-    username: ${DB_USERNAME:postgres}
+    url: jdbc:postgresql://${DB_HOST}:5432/${DB_NAME}
+    username: ${DB_USERNAME}
     password: ${DB_PASSWORD}
     driver-class-name: org.postgresql.Driver
 
@@ -15,3 +15,10 @@ spring:
       hibernate:
         dialect: org.hibernate.dialect.PostgreSQLDialect
         format_sql: false
+
+logging:
+  level:
+    org.hibernate.SQL: warn
+    org.hibernate.type.descriptor.sql.BasicBinder: warn
+    com.pirogramming.recruit: info
+    root: info

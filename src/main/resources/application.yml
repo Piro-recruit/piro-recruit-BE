@@ -8,10 +8,18 @@ spring:
     properties:
       hibernate:
         format_sql: true
+    data:
+      jpa:
+        repositories:
+          enabled: true # JPA Repository
 
   springdoc:
     swagger-ui:
       path: /swagger-ui.html
+      tags-sorter: alpha # 태그를 알파벳 순으로 정렬
+      operations-sorter: alpha # API 메서드를 알파벳 순으로 정렬
+    api-docs:
+      path: /api-docs # API 문서 JSON 경로 설정
 
   mail:
     host: smtp.gmail.com        # SMTP 서버 호스트
@@ -42,7 +50,8 @@ logging:
   level:
     org.hibernate.SQL: debug
     org.hibernate.type.descriptor.sql.BasicBinder: trace
-    com.ayu.realty: DEBUG
+    com.ayu.realty: debug
+    org.springframework.security: debug
 
 jwt:
   secret: ${JWT_SECRET}
