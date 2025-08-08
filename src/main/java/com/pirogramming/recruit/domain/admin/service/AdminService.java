@@ -90,9 +90,16 @@ public class AdminService {
             loginCode = UUID.randomUUID().toString().substring(0, 8).toUpperCase();
         }
 
+        // identifierName이 제공되지 않으면 자동 생성
+        String identifierName = request.getIdentifierName();
+        if (identifierName == null || identifierName.trim().isEmpty()) {
+            int nextNumber = adminRepository.findMaxIdentifierNumber().orElse(0) + 1;
+            identifierName = String.format("평가자-%03d", nextNumber);
+        }
+
         Admin admin = Admin.builder()
                 .loginCode(loginCode)
-                .identifierName(request.getIdentifierName())
+                .identifierName(identifierName)
                 .role(AdminRole.GENERAL)
                 .expiredAt(request.getExpiredAt())
                 .build();
@@ -105,7 +112,10 @@ public class AdminService {
     public CreateGeneralAdminBatchResponse createGeneralAdminBatch(CreateGeneralAdminBatchRequest request) {
         List<GeneralAdminResponse> createdAdmins = new ArrayList<>();
         
-        for (int i = 1; i <= request.getCount(); i++) {
+        // 현재 존재하는 가장 큰 식별자 번호 찾기
+        int startNumber = adminRepository.findMaxIdentifierNumber().orElse(0) + 1;
+        
+        for (int i = 0; i < request.getCount(); i++) {
             // 고유한 로그인 코드 생성 (UUID 기반)
             String loginCode = UUID.randomUUID().toString().substring(0, 8).toUpperCase();
             
@@ -114,8 +124,8 @@ public class AdminService {
                 loginCode = UUID.randomUUID().toString().substring(0, 8).toUpperCase();
             }
             
-            // 자동 식별자 생성 (평가자-001, 평가자-002, ...)
-            String identifierName = String.format("평가자-%03d", i);
+            // 자동 식별자 생성 (기존 최대값의 다음 번호부터)
+            String identifierName = String.format("평가자-%03d", startNumber + i);
             
             Admin admin = Admin.builder()
                     .loginCode(loginCode)
