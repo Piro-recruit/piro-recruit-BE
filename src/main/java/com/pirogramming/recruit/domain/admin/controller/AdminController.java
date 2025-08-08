@@ -11,6 +11,8 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
+import com.pirogramming.recruit.domain.admin.dto.CreateGeneralAdminBatchRequest;
+import com.pirogramming.recruit.domain.admin.dto.CreateGeneralAdminBatchResponse;
 import com.pirogramming.recruit.domain.admin.dto.CreateGeneralAdminRequest;
 import com.pirogramming.recruit.domain.admin.dto.GeneralAdminResponse;
 import com.pirogramming.recruit.domain.admin.dto.LoginRequest;
@@ -41,6 +43,13 @@ public class AdminController {
     @PreAuthorize("hasRole('ROOT')")
     public ResponseEntity<GeneralAdminResponse> createGeneralAdmin(@RequestBody CreateGeneralAdminRequest request) {
         return ResponseEntity.ok(adminService.createGeneralAdmin(request));
+    }
+
+    // General Admin 일괄 생성 (ROOT 권한 필요)
+    @PostMapping("/general/batch")
+    @PreAuthorize("hasRole('ROOT')")
+    public ResponseEntity<CreateGeneralAdminBatchResponse> createGeneralAdminBatch(@RequestBody CreateGeneralAdminBatchRequest request) {
+        return ResponseEntity.ok(adminService.createGeneralAdminBatch(request));
     }
 
     // 모든 General Admin 조회 (ROOT 권한 필요)
