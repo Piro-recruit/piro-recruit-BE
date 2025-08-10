@@ -19,6 +19,12 @@ ext {
 	csvVersion = '1.10.0'
 }
 
+configurations {
+	compileOnly {
+		extendsFrom annotationProcessor
+	}
+}
+
 repositories {
 	mavenCentral()
 }
@@ -32,6 +38,7 @@ dependencies {
 
 	// Spring Data JPA (ORM, Repository 등 DB 연동 기능 제공)
 	implementation 'org.springframework.boot:spring-boot-starter-data-jpa'
+	implementation 'org.springframework.boot:spring-boot-starter-validation'
 
 	// Spring Boot Actuator (애플리케이션 모니터링 및 관리 기능)
 	implementation 'org.springframework.boot:spring-boot-starter-actuator'
@@ -60,6 +67,13 @@ dependencies {
 	// PostgreSQL 드라이버 (JPA와 연동되는 실DB 연결용)
 	runtimeOnly 'org.postgresql:postgresql'
 
+	// JSON 처리 (PostgreSQL JSONB 지원)
+	implementation 'com.fasterxml.jackson.core:jackson-databind'
+	implementation 'com.fasterxml.jackson.core:jackson-core'
+	implementation 'com.fasterxml.jackson.core:jackson-annotations'
+
+	// Hibernate JSON 타입 지원
+	implementation 'io.hypersistence:hypersistence-utils-hibernate-60:3.5.1'
 
 	// === 개발 편의성 ===
 
@@ -71,6 +85,7 @@ dependencies {
 
 	// Spring Boot 테스트 기능 (JUnit, MockMvc 등 포함)
 	testImplementation 'org.springframework.boot:spring-boot-starter-test'
+	testImplementation 'org.springframework.security:spring-security-test'
 
 	// === 파일 처리 관련 의존성 ===
 	implementation "org.apache.poi:poi:${poiVersion}"

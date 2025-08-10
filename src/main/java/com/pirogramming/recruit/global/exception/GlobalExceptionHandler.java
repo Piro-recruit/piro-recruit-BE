@@ -4,13 +4,11 @@ import java.util.stream.Collectors;
 
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.AccessDeniedException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
-import org.springframework.security.access.AccessDeniedException;
 
-import com.pirogramming.recruit.global.exception.ApiRes;
-import com.pirogramming.recruit.global.exception.RecruitException;
 import com.pirogramming.recruit.global.exception.code.ErrorCode;
 import com.pirogramming.recruit.global.exception.entity_exception.MemberNotFoundException;
 
@@ -49,11 +47,11 @@ public class GlobalExceptionHandler {
 			.body(ApiRes.failure(HttpStatus.FORBIDDEN, ErrorCode.FORBIDDEN));
 	}
 
-	@ExceptionHandler(IllegalArgumentException.class)
-	public ResponseEntity<ApiRes<Void>> handleIllegalArgument(IllegalArgumentException e) {
-		log.warn("잘못된 요청 파라미터: {}", e.getMessage());
-		return ResponseEntity.status(HttpStatus.BAD_REQUEST)
-			.body(ApiRes.failure(HttpStatus.BAD_REQUEST, e.getMessage(), ErrorCode.INVALID_ARGUMENT));
+	@ExceptionHandler(RuntimeException.class)
+	public ResponseEntity<ApiRes<Void>> handleRuntimeException(RuntimeException e) {
+		log.error("Unexpected error: ", e);
+		return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+			.body(ApiRes.failure(HttpStatus.INTERNAL_SERVER_ERROR, ErrorCode.INTERNAL_ERROR));
 	}
 
 	@ExceptionHandler(MemberNotFoundException.class)
@@ -62,12 +60,11 @@ public class GlobalExceptionHandler {
 			.body(ApiRes.failure(e.getStatus(), e.getMessage(), e.getErrorCode()));
 	}
 
-	@ExceptionHandler(RuntimeException.class)
-	public ResponseEntity<ApiRes<Void>> handleRuntimeException(RuntimeException e) {
-		log.error("Unexpected error: ", e);
-		return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-			.body(ApiRes.failure(HttpStatus.INTERNAL_SERVER_ERROR, ErrorCode.INTERNAL_ERROR));
+	@ExceptionHandler(IllegalArgumentException.class)
+	public ResponseEntity<ApiRes<Void>> handleIllegalArgument(IllegalArgumentException e) {
+		log.warn("잘못된 요청 파라미터: {}", e.getMessage());
+		return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+			.body(ApiRes.failure(HttpStatus.BAD_REQUEST, e.getMessage(), ErrorCode.INVALID_ARGUMENT));
 	}
-
 
 }
