@@ -25,6 +25,8 @@ pipeline {
         OPENAI_API_KEY = credentials('OPENAI_API_KEY')
         STMP_USER_ID = credentials('STMP_USER_ID')
         STMP_PASSWORD = credentials('STMP_PASSWORD')
+        JWT_SECRET = credentials('JWT_SECRET')
+        ROOT_ADMIN_LOGIN_CODE = credentials('ROOT_ADMIN_LOGIN_CODE')
     }
 
     stages {
