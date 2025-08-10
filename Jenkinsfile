@@ -179,7 +179,7 @@ pipeline {
                                     -e SPRING_DATASOURCE_URL=jdbc:postgresql://${DB_HOST}:5432/${DB_NAME} \\
                                     -e SPRING_DATASOURCE_USERNAME=${DB_USERNAME} \\
                                     -e SPRING_DATASOURCE_PASSWORD=${DB_PASSWORD} \\
-                                    -e SPRING_JPA_HIBERNATE_DDL_AUTO=validate \\
+                                    -e SPRING_JPA_HIBERNATE_DDL_AUTO=update \\
                                     -e SPRING_JPA_SHOW_SQL=false \\
                                     -e SPRING_PROFILES_ACTIVE=prod \\
                                     -e LOGGING_LEVEL_ROOT=INFO \\
