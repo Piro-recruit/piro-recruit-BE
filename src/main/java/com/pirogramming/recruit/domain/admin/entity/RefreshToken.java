@@ -1,0 +1,48 @@
+package com.pirogramming.recruit.domain.admin.entity;
+
+import java.time.LocalDateTime;
+
+import jakarta.persistence.Entity;
+import jakarta.persistence.GeneratedValue;
+import jakarta.persistence.GenerationType;
+import jakarta.persistence.Id;
+import lombok.AccessLevel;
+import lombok.AllArgsConstructor;
+import lombok.Builder;
+import lombok.Getter;
+import lombok.NoArgsConstructor;
+
+@Entity
+@Getter
+@NoArgsConstructor(access = AccessLevel.PROTECTED)
+@AllArgsConstructor
+@Builder
+public class RefreshToken {
+
+    @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    private Long id;
+
+    private Long adminId;
+
+    private String token;
+
+    @Builder.Default
+    private LocalDateTime createdAt = LocalDateTime.now();
+
+    public RefreshToken(Long adminId, String token) {
+        this.adminId = adminId;
+        this.token = token;
+        this.createdAt = LocalDateTime.now();
+    }
+
+    public void updateToken(String newToken) {
+        this.token = newToken;
+        this.createdAt = LocalDateTime.now();
+    }
+
+    public boolean isExpired() {
+        // 7일 후 만료
+        return createdAt.plusDays(7).isBefore(LocalDateTime.now());
+    }
+}

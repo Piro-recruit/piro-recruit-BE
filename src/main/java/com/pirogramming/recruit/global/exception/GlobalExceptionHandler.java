@@ -1,16 +1,14 @@
-package com.pirogramming.Recruit.global.exception;
+package com.pirogramming.recruit.global.exception;
 
 import java.util.stream.Collectors;
 
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.AccessDeniedException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
-import org.springframework.security.access.AccessDeniedException;
 
-import com.pirogramming.recruit.global.exception.ApiRes;
-import com.pirogramming.recruit.global.exception.RecruitException;
 import com.pirogramming.recruit.global.exception.code.ErrorCode;
 import com.pirogramming.recruit.global.exception.entity_exception.MemberNotFoundException;
 
@@ -68,6 +66,5 @@ public class GlobalExceptionHandler {
 		return ResponseEntity.status(HttpStatus.BAD_REQUEST)
 			.body(ApiRes.failure(HttpStatus.BAD_REQUEST, e.getMessage(), ErrorCode.INVALID_ARGUMENT));
 	}
-
 
 }

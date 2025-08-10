@@ -8,7 +8,7 @@ pipeline {
         DOCKERHUB_CREDENTIALS = credentials('dockerhub-credentials')
 
         // 배포 서버 정보
-        APP_SERVER = '34.64.41.136'
+        APP_SERVER = credentials('APP_SERVER_IP')
         APP_USER = 'ubuntu'
 
         // 애플리케이션 포트 (수정됨)
@@ -16,7 +16,7 @@ pipeline {
         GREEN_PORT = '8082'
 
         // 데이터베이스 정보
-        DB_HOST = '34.64.113.7'
+        DB_HOST = credentials('DB_HOST_IP')
         DB_NAME = 'app_user'
         DB_USERNAME = credentials('DB_USERNAME')
         DB_PASSWORD = credentials('DB_PASSWORD')
@@ -184,6 +184,8 @@ pipeline {
                                     -e OPENAI_API_KEY=${OPENAI_API_KEY} \\
                                     -e STMP_USER_ID=${STMP_USER_ID} \\
                                     -e STMP_PASSWORD=${STMP_PASSWORD} \\
+                                    -e JWT_SECRET=${JWT_SECRET} \\
+                                    -e ROOT_ADMIN_LOGIN_CODE=${ROOT_ADMIN_LOGIN_CODE} \\
                                     -e JAVA_OPTS="-Xmx256m -XX:+UseG1GC" \\
                                     ${DOCKER_IMAGE}:${DOCKER_TAG}
 
