@@ -28,6 +28,7 @@ public enum ErrorCode {
 	EXPIRED_ADMIN(3002, "해당 관리자는 리쿠르팅 기간이 만료되어 삭제되었습니다."),
 	INVALID_REFRESH_TOKEN(3003, "유효하지 않은 리프레시 토큰입니다."),
 	ADMIN_NOT_FOUND(3004, "해당 관리자를 찾을 수 없습니다."),
+	INVALID_API_KEY(3005, "유효하지 않은 API Key입니다."),
 
 
 
