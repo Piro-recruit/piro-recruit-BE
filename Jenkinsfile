@@ -27,6 +27,7 @@ pipeline {
         STMP_PASSWORD = credentials('STMP_PASSWORD')
         JWT_SECRET = credentials('JWT_SECRET')
         ROOT_ADMIN_LOGIN_CODE = credentials('ROOT_ADMIN_LOGIN_CODE')
+        WEBHOOK_API_KEY = credentials('WEBHOOK_API_KEY')
     }
 
     stages {
@@ -185,6 +186,7 @@ pipeline {
                                     -e STMP_PASSWORD=${STMP_PASSWORD} \\
                                     -e JWT_SECRET=${JWT_SECRET} \\
                                     -e ROOT_ADMIN_LOGIN_CODE=${ROOT_ADMIN_LOGIN_CODE} \\
+                                    -e WEBHOOK_API_KEY=${WEBHOOK_API_KEY} \\
                                     -e JAVA_OPTS="-Xmx256m -XX:+UseG1GC" \\
                                     ${DOCKER_IMAGE}:${DOCKER_TAG}
 
