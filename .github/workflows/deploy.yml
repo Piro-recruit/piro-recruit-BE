@@ -26,26 +26,10 @@ jobs:
           timeout: 60s
           command_timeout: 60s
           script: |
+            echo "🚀 Starting Simple Deployment..."
+            
             # DockerHub에서 최신 이미지 pull
             docker pull ${{ env.DOCKER_IMAGE }}:latest
-
-            # Blue-Green 배포 스크립트 실행
-            cd /opt/app
-
-            # 현재 실행 중인 컨테이너 확인
-            CURRENT_PORT=$(docker ps --format "table {{.Names}}\t{{.Ports}}" | grep recruit-app | grep -o '8080\|8081' | head -1)
-
-            if [ "$CURRENT_PORT" = "8080" ]; then
-              NEW_PORT="8081"
-              NEW_CONTAINER="piro-recruit-app-green"
-              OLD_CONTAINER="piro-recruit-app-blue"
-            else
-              NEW_PORT="8080"
-              NEW_CONTAINER="piro-recruit-app-blue"
-              OLD_CONTAINER="piro-recruit-app-green"
-            fi
-
-            echo "Deploying to port $NEW_PORT"
 
             # Docker 네트워크 확인 및 생성
             docker network ls | grep app_backend || docker network create app_backend
@@ -53,11 +37,15 @@ jobs:
             # 기존 DB 컨테이너를 네트워크에 연결
             docker network connect app_backend piro-recruit-db 2>/dev/null || true
 
+            # 기존 애플리케이션 컨테이너 정리
+            docker stop piro-recruit-app 2>/dev/null || true
+            docker rm piro-recruit-app 2>/dev/null || true
+
             # 새 컨테이너 실행
             docker run -d \
-              --name $NEW_CONTAINER \
+              --name piro-recruit-app \
               --network app_backend \
-              -p $NEW_PORT:8080 \
+              -p 8080:8080 \
               -e SPRING_PROFILES_ACTIVE=${{ secrets.SPRING_PROFILES_ACTIVE }} \
               -e DB_HOST=${{ secrets.DB_HOST }} \
               -e DB_USERNAME=${{ secrets.DB_USERNAME }} \
@@ -66,35 +54,25 @@ jobs:
               --restart always \
               ${{ env.DOCKER_IMAGE }}:latest
 
-            # 헬스체크 (30초 대기)
-            echo "Waiting for new container to be ready..."
+            # 컨테이너 시작 대기 (30초)
+            echo "⏰ Waiting for application to start (30s)..."
             sleep 30
 
-            # 헬스체크 수행
+            # 헬스체크
+            echo "🏥 Performing health check..."
             for i in {1..10}; do
-              if curl -f http://localhost:$NEW_PORT/actuator/health; then
-                echo "Health check passed!"
-
-                # Nginx 업스트림 변경
-                sudo sed -i "s/server 127.0.0.1:[0-9]*/server 127.0.0.1:$NEW_PORT/" /etc/nginx/sites-available/blue-green
-                sudo nginx -t && sudo systemctl reload nginx
-
-                # 이전 컨테이너 정리 (10초 후)
-                sleep 10
-                docker stop $OLD_CONTAINER || true
-                docker rm $OLD_CONTAINER || true
-
-                echo "🎉 Blue-Green deployment completed successfully!"
-                echo "Current environment: $([ "$NEW_PORT" = "8080" ] && echo "Blue" || echo "Green")"
+              if curl -f http://localhost:8080/actuator/health; then
+                echo "✅ Health check passed!"
+                echo "🎉 Simple deployment completed successfully!"
+                echo "🌐 Application is running on port 8080"
                 exit 0
               else
-                echo "Health check failed, attempt $i/10"
+                echo "❌ Health check failed, attempt $i/10"
                 sleep 10
               fi
             done
 
-            # 헬스체크 실패 시 롤백
-            echo "Health check failed, rolling back..."
-            docker stop $NEW_CONTAINER || true
-            docker rm $NEW_CONTAINER || true
+            # 헬스체크 실패 시
+            echo "💥 Health check failed, checking logs..."
+            docker logs piro-recruit-app --tail 50
             exit 1
