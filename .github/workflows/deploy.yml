@@ -62,7 +62,7 @@ jobs:
               -e DB_HOST=${{ secrets.DB_HOST }} \
               -e DB_USERNAME=${{ secrets.DB_USERNAME }} \
               -e DB_PASSWORD=${{ secrets.DB_PASSWORD }} \
-              -e DB_NAME=${{ secrets.DB_NAME }} \
+              -e DB_NAME=piro_recruit \
               --restart always \
               ${{ env.DOCKER_IMAGE }}:latest
 
