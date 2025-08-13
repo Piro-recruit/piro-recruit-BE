@@ -20,8 +20,11 @@ jobs:
         uses: appleboy/ssh-action@v1.0.3
         with:
           host: ${{ secrets.NCP_HOST }}
-          username: ubuntu
-          key: ${{ secrets.NCP_SSH_KEY }}
+          username: root
+          password: ${{ secrets.NCP_ROOT_PASSWORD }}
+          debug: true
+          timeout: 60s
+          command_timeout: 60s
           script: |
             # DockerHub에서 최신 이미지 pull
             docker pull ${{ env.DOCKER_IMAGE }}:latest
