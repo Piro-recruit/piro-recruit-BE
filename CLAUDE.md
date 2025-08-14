@@ -51,16 +51,21 @@ This is a Spring Boot 3.5.3 application using Java 21 with a DDD (Domain-Driven 
 ```
 com.pirogramming.recruit
 ├── domain/                 # Domain-specific modules
-│   └── [domain-name]/     # e.g., admin, member
+│   ├── admin/             # Admin authentication & authorization
+│   ├── ai_summary/        # OpenAI integration for application processing
+│   ├── googleform/        # Google Form integration
+│   ├── mail/              # Email services and subscriber management
+│   └── webhook/           # Webhook application processing
 │       ├── controller/    # REST API endpoints
 │       ├── service/       # Business logic
 │       ├── entity/        # JPA entities
 │       ├── repository/    # Data access layer
 │       └── dto/          # Request/Response DTOs
 └── global/               # Cross-cutting concerns
-    ├── config/          # Configuration classes
-    ├── exception/       # Global exception handling
-    └── jwt/            # JWT authentication
+    ├── config/          # Security, JPA, Swagger, WebClient configuration
+    ├── exception/       # Global exception handling with ApiRes wrapper
+    ├── entity/          # Base entities (BaseTimeEntity)
+    └── jwt/            # JWT authentication and token management
 ```
 
 ### Key Technologies
@@ -84,10 +89,11 @@ The application uses a standardized response format via `ApiRes<T>` class:
 - Error: `{ "success": false, "data": null, "message": "...", "status": 4xx/5xx, "code": ..., "time": "..." }`
 
 ### Security Configuration
-- JWT-based authentication (currently commented out in SecurityConfig)
+- JWT-based authentication with JwtAuthenticationFilter enabled
 - CORS enabled for all origins with credentials
-- All endpoints currently permit all requests
+- Most endpoints require authentication (except login, swagger, health)
 - BCrypt password encoding
+- Stateless session management
 
 ### Environment Profiles
 - `dev`: Development environment
@@ -125,9 +131,24 @@ fix auth: resolve authentication error on login
 - Lombok annotations for reducing boilerplate code
 - Constructor injection with `@RequiredArgsConstructor`
 
+## Domain-Specific Features
+
+### Core Domains
+- **admin**: Admin authentication/authorization with JWT and refresh token support
+- **ai_summary**: OpenAI integration for application processing and summarization
+- **googleform**: Google Form integration for handling external form submissions
+- **mail**: Email service with bulk/single mail capabilities and subscriber management
+- **webhook**: Webhook-based application processing system
+
+### External Integrations
+- **OpenAI API**: For AI-powered application analysis and summarization
+- **Gmail SMTP**: For sending notification emails
+- **PostgreSQL**: Primary database with JSONB support for complex data structures
+
 ## Important Notes
-- JWT secret is currently hardcoded in application.yml - should be externalized for production
-- Security filters are commented out in SecurityConfig - implement when authentication is needed
-- Application includes file processing capabilities (Apache POI, CSV)
+- JWT secret and other sensitive values are externalized via environment variables
+- Application includes file processing capabilities (Apache POI for Excel, Apache Commons CSV)
 - Health check endpoint available at `/actuator/health`
 - Swagger UI available at `/swagger-ui.html`
+- Uses CommonMark for Markdown processing
+- Docker environment requires `.env` file with database credentials and API keys

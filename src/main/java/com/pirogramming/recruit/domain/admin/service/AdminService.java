@@ -5,15 +5,18 @@ import java.util.List;
 import java.util.UUID;
 import java.util.stream.Collectors;
 
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 
+import com.pirogramming.recruit.domain.admin.dto.ApiKeyExchangeRequest;
 import com.pirogramming.recruit.domain.admin.dto.CreateGeneralAdminBatchRequest;
 import com.pirogramming.recruit.domain.admin.dto.CreateGeneralAdminBatchResponse;
 import com.pirogramming.recruit.domain.admin.dto.CreateGeneralAdminRequest;
 import com.pirogramming.recruit.domain.admin.dto.GeneralAdminResponse;
 import com.pirogramming.recruit.domain.admin.dto.LoginRequest;
 import com.pirogramming.recruit.domain.admin.dto.LoginResponse;
+import com.pirogramming.recruit.domain.admin.dto.TokenExchangeResponse;
 import com.pirogramming.recruit.domain.admin.entity.Admin;
 import com.pirogramming.recruit.domain.admin.entity.AdminRole;
 import com.pirogramming.recruit.domain.admin.entity.RefreshToken;
@@ -32,6 +35,9 @@ public class AdminService {
     private final AdminRepository adminRepository;
     private final RefreshTokenRepository refreshTokenRepository;
     private final JwtTokenProvider jwtTokenProvider;
+    
+    @Value("${webhook.api.key}")
+    private String webhookApiKey;
 
     @Transactional
     public LoginResponse login(LoginRequest requestDto) {
@@ -179,5 +185,29 @@ public class AdminService {
 
         // 모든 General Admin 삭제
         adminRepository.deleteAll(generalAdmins);
+    }
+
+    /**
+     * API Key를 JWT 토큰으로 교환
+     * Apps Script 등 외부 서비스에서 webhook 호출 시 사용
+     */
+    public TokenExchangeResponse exchangeApiKeyForToken(ApiKeyExchangeRequest request) {
+        // API Key 검증
+        if (!webhookApiKey.equals(request.getApiKey())) {
+            throw new RecruitException(HttpStatus.UNAUTHORIZED, ErrorCode.INVALID_API_KEY);
+        }
+
+        // 웹훅 전용 토큰 생성 (특별한 admin ID 사용: -1L)
+        String accessToken = jwtTokenProvider.generateAccessToken(-1L, AdminRole.WEBHOOK);
+        
+        // 토큰 만료 시간 (초 단위) - 1시간
+        Long expiresIn = 3600L;
+        
+        return new TokenExchangeResponse(
+            accessToken,
+            "Bearer",
+            expiresIn,
+            request.getPurpose() != null ? request.getPurpose() : "webhook"
+        );
     }
 }

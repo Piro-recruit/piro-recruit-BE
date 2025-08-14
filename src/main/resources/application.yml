@@ -63,3 +63,7 @@ admin:
 openai:
   api:
     key: ${OPENAI_API_KEY}
+
+webhook:
+  api:
+    key: ${WEBHOOK_API_KEY}
