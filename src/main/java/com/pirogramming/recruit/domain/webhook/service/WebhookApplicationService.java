@@ -6,6 +6,7 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.stream.Collectors;
 
+import com.pirogramming.recruit.domain.ai_summary.service.ApplicationSummaryService;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -31,6 +32,7 @@ public class WebhookApplicationService {
 
     private final WebhookApplicationRepository webhookApplicationRepository;
     private final GoogleFormService googleFormService;
+    private final ApplicationSummaryService applicationSummaryService;
 
     // 구글 폼에서 전송된 지원서 데이터를 저장
     @Transactional
@@ -232,4 +234,37 @@ public class WebhookApplicationService {
         
         return statistics;
     }
+
+//    summary_ai 추가
+    @Transactional
+    public WebhookApplicationResponse receiveAndSummarize(WebhookApplicationRequest req) {
+
+        applicationSummaryService.summarizeAndSaveFromWebhook(
+                req.getFormId(),
+                req.getFormResponseId(),
+                req.getApplicantName(),
+                req.getApplicantEmail(),
+                req.getFormData()
+        );
+
+        // 저장 자체는 요약 테이블에 하므로, 컨트롤러 응답은 간단 상태만 내려도 됨.
+        return WebhookApplicationResponse.builder()
+                .id(null)
+                .googleFormId(null)
+                .formId(req.getFormId())
+                .formTitle(null)
+                .applicantName(req.getApplicantName())
+                .applicantEmail(req.getApplicantEmail())
+                .formResponseId(req.getFormResponseId())
+                .submissionTimestamp(req.getSubmissionTimestamp())
+                .formData(req.getFormData())
+                .status("RECEIVED")
+                .errorMessage(null)
+                .aiAnalysis(null)
+                .createdAt(null)
+                .updatedAt(null)
+                .build();
+    }
+
+
 }
