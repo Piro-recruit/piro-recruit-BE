@@ -73,7 +73,7 @@ public class GoogleFormController {
     @GetMapping
     @Operation(summary = "전체 구글 폼 조회", description = "모든 구글 폼을 최신순으로 조회합니다.")
     public ResponseEntity<ApiRes<List<GoogleFormResponse>>> getAllGoogleForms(
-            @Parameter(description = "지원서 개수 포함 여부") @RequestParam(defaultValue = "false") boolean includeApplicationCount) {
+            @Parameter(description = "지원서 개수 포함 여부") @RequestParam(defaultValue = "true") boolean includeApplicationCount) {
 
         List<GoogleForm> googleForms = googleFormService.getAllGoogleForms();
 

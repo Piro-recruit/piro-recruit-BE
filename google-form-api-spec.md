@@ -77,7 +77,7 @@
 모든 구글 폼을 최신순으로 조회합니다.
 
 #### Query Parameters
-- `includeApplicationCount` (boolean, optional): 지원서 개수 포함 여부 (기본값: false)
+- `includeApplicationCount` (boolean, optional): 지원서 개수 포함 여부 (기본값: true)
 
 #### Response (200 OK)
 ```json
