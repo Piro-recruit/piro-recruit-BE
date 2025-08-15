@@ -259,7 +259,7 @@ public class WebhookApplicationService {
 
     // 합격 상태 일괄 변경
     @Transactional
-    public List<WebhookApplication> updatePassStatusBatch(List<Long> ids, WebhookApplication.PassStatus passStatus) {
+    public List<WebhookApplication> updatePassStatusAll(List<Long> ids, WebhookApplication.PassStatus passStatus) {
         List<WebhookApplication> applications = webhookApplicationRepository.findAllById(ids);
 
         for (WebhookApplication app : applications) {
