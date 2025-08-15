@@ -22,6 +22,7 @@ public class GoogleFormResponse {
     private String sheetUrl;
     private Boolean isActive;
     private String description;
+    private Integer generation;
 
     // 추가 정보
     private Long applicationCount; // 지원서 개수
@@ -40,6 +41,7 @@ public class GoogleFormResponse {
                 .sheetUrl(entity.getSheetUrl())
                 .isActive(entity.getIsActive())
                 .description(entity.getDescription())
+                .generation(entity.getGeneration())
                 .createdAt(entity.getCreatedAt())
                 .updatedAt(entity.getUpdatedAt())
                 .build();

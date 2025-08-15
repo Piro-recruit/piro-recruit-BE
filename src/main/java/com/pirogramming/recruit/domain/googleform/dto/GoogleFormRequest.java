@@ -1,7 +1,9 @@
 package com.pirogramming.recruit.domain.googleform.dto;
 
 import com.pirogramming.recruit.domain.googleform.entity.GoogleForm;
+import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Size;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
@@ -33,6 +35,10 @@ public class GoogleFormRequest {
     @Size(max = 2000, message = "설명은 2000자 이하여야 합니다")
     private String description;
 
+    @NotNull(message = "기수는 필수입니다")
+    @Min(value = 1, message = "기수는 1 이상이어야 합니다")
+    private Integer generation;
+
     // DTO를 Entity로 변환
     public GoogleForm toEntity() {
         return GoogleForm.builder()
@@ -41,6 +47,7 @@ public class GoogleFormRequest {
                 .formUrl(this.formUrl)
                 .sheetUrl(this.sheetUrl)
                 .description(this.description)
+                .generation(this.generation)
                 .build();
     }
 }
