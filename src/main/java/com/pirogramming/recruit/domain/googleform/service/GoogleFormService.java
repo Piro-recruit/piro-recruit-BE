@@ -141,4 +141,21 @@ public class GoogleFormService {
     public List<GoogleForm> searchGoogleFormsByTitle(String title) {
         return googleFormRepository.findByTitleContainingIgnoreCase(title);
     }
+
+    // 구글 폼 삭제
+    @Transactional
+    public void deleteGoogleForm(Long googleFormId) {
+        log.info("구글 폼 삭제: {}", googleFormId);
+
+        GoogleForm googleForm = getGoogleFormByIdRequired(googleFormId);
+        
+        // 활성화된 폼인지 확인
+        if (Boolean.TRUE.equals(googleForm.getIsActive())) {
+            log.warn("활성화된 구글 폼 삭제 시도: {}", googleFormId);
+            throw new RecruitException(HttpStatus.BAD_REQUEST, ErrorCode.GOOGLE_FORM_ACTIVE_CANNOT_DELETE);
+        }
+
+        googleFormRepository.delete(googleForm);
+        log.info("구글 폼 삭제 완료: {}", googleFormId);
+    }
 }

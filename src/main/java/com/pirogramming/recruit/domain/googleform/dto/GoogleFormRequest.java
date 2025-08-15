@@ -8,6 +8,8 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 import org.hibernate.validator.constraints.URL;
 
+import java.time.LocalDateTime;
+
 @Getter
 @NoArgsConstructor
 @AllArgsConstructor
@@ -33,6 +35,10 @@ public class GoogleFormRequest {
     @Size(max = 2000, message = "설명은 2000자 이하여야 합니다")
     private String description;
 
+    private LocalDateTime recruitingStartDate;
+
+    private LocalDateTime recruitingEndDate;
+
     // DTO를 Entity로 변환
     public GoogleForm toEntity() {
         return GoogleForm.builder()
@@ -41,6 +47,8 @@ public class GoogleFormRequest {
                 .formUrl(this.formUrl)
                 .sheetUrl(this.sheetUrl)
                 .description(this.description)
+                .recruitingStartDate(this.recruitingStartDate)
+                .recruitingEndDate(this.recruitingEndDate)
                 .build();
     }
 }
