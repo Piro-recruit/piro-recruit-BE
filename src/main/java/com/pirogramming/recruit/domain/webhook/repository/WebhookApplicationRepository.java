@@ -85,6 +85,13 @@ public interface WebhookApplicationRepository extends JpaRepository<WebhookAppli
     @Query("SELECT w.googleForm.id, COUNT(w) FROM WebhookApplication w WHERE w.googleForm.id IN :googleFormIds GROUP BY w.googleForm.id")
     List<Object[]> countByGoogleFormIds(@Param("googleFormIds") List<Long> googleFormIds);
 
+    // 추가: GoogleForm과 함께 조회 (N+1 문제 방지)
+    @Query("SELECT w FROM WebhookApplication w JOIN FETCH w.googleForm ORDER BY w.createdAt DESC")
+    List<WebhookApplication> findAllWithGoogleFormOrderByCreatedAtDesc();
+
+    @Query("SELECT w FROM WebhookApplication w JOIN FETCH w.googleForm WHERE w.googleForm.id = :googleFormId ORDER BY w.createdAt DESC")
+    List<WebhookApplication> findByGoogleFormIdWithGoogleFormOrderByCreatedAtDesc(@Param("googleFormId") Long googleFormId);
+
     // 홈페이지 User ID 관련 메서드들 (새로운 지원자에게 순차적인 홈페이지 사용자 ID를 부여)
     @Query("SELECT MAX(w.homepageUserId) FROM WebhookApplication w WHERE w.homepageUserId IS NOT NULL")
     Optional<Long> findMaxHomepageUserId();

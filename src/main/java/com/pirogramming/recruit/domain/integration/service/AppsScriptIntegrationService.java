@@ -35,9 +35,9 @@ public class AppsScriptIntegrationService {
         List<WebhookApplication> applications;
 
         if (googleFormId != null) {
-            applications = webhookApplicationRepository.findByGoogleFormIdOrderByCreatedAtDesc(googleFormId);
+            applications = webhookApplicationRepository.findByGoogleFormIdWithGoogleFormOrderByCreatedAtDesc(googleFormId);
         } else {
-            applications = webhookApplicationRepository.findAllOrderByCreatedAtDesc();
+            applications = webhookApplicationRepository.findAllWithGoogleFormOrderByCreatedAtDesc();
         }
 
         StringBuilder csv = new StringBuilder();
@@ -51,7 +51,7 @@ public class AppsScriptIntegrationService {
 
             String name = escapeCSV(app.getApplicantName());
             String phone = escapeCSV(extractPhoneFromFormData(app));
-            // ✨ 수정: 구글폼의 generation 사용
+
             int level = app.getGoogleForm().getGeneration();
             int major = determineMajorStatus(app);
             int isPassed = app.getPassStatus().getCsvValue();
@@ -93,10 +93,12 @@ public class AppsScriptIntegrationService {
         List<WebhookApplication> applications;
 
         if (googleFormId != null) {
-            applications = webhookApplicationRepository.findByGoogleFormIdOrderByCreatedAtDesc(googleFormId)
+            // 수정: JOIN FETCH 사용
+            applications = webhookApplicationRepository.findByGoogleFormIdWithGoogleFormOrderByCreatedAtDesc(googleFormId)
                     .stream().limit(limit).collect(Collectors.toList());
         } else {
-            applications = webhookApplicationRepository.findAllOrderByCreatedAtDesc()
+            // 수정: JOIN FETCH 사용
+            applications = webhookApplicationRepository.findAllWithGoogleFormOrderByCreatedAtDesc()
                     .stream().limit(limit).collect(Collectors.toList());
         }
 
