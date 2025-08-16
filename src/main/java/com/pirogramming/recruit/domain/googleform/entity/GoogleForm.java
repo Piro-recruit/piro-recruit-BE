@@ -43,8 +43,11 @@ public class GoogleForm extends BaseTimeEntity {
     @Column
     private LocalDateTime recruitingEndDate; // 리쿠르팅 종료 날짜
 
+    @Column(nullable = false)
+    private Integer generation; // 기수 (23, 24, 25기 등)
+
     @Builder
-    public GoogleForm(String formId, String title, String formUrl, String sheetUrl, String description, LocalDateTime recruitingStartDate, LocalDateTime recruitingEndDate) {
+    public GoogleForm(String formId, String title, String formUrl, String sheetUrl, String description, Integer generation, LocalDateTime recruitingStartDate, LocalDateTime recruitingEndDate) {
         this.formId = formId;
         this.title = title;
         this.formUrl = formUrl;
@@ -52,6 +55,7 @@ public class GoogleForm extends BaseTimeEntity {
         this.description = description;
         this.recruitingStartDate = recruitingStartDate;
         this.recruitingEndDate = recruitingEndDate;
+        this.generation = generation;
         this.isActive = false;
     }
 
@@ -77,6 +81,14 @@ public class GoogleForm extends BaseTimeEntity {
             validateUrl(newUrl, "시트 URL");
         }
         this.sheetUrl = newUrl;
+    }
+
+    // 기수 업데이트
+    public void updateGeneration(Integer newGeneration) {
+        if (newGeneration == null || newGeneration <= 0) {
+            throw new IllegalArgumentException("기수는 1 이상의 양수여야 합니다");
+        }
+        this.generation = newGeneration;
     }
 
     // URL 유효성 검증

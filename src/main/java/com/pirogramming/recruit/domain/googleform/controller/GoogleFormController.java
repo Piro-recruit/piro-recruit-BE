@@ -308,4 +308,128 @@ public class GoogleFormController {
                 ApiRes.success(null, "구글 폼이 성공적으로 삭제되었습니다.")
         );
     }
+
+    // 특정 기수의 구글 폼들 조회
+    @GetMapping("/generation/{generation}")
+    @Operation(summary = "특정 기수의 구글 폼들 조회", description = "특정 기수의 모든 구글 폼을 조회합니다.")
+    public ResponseEntity<ApiRes<List<GoogleFormResponse>>> getGoogleFormsByGeneration(
+            @Parameter(description = "기수") @PathVariable Integer generation,
+            @Parameter(description = "지원서 개수 포함 여부") @RequestParam(defaultValue = "true") boolean includeApplicationCount) {
+
+        List<GoogleForm> googleForms = googleFormService.getGoogleFormsByGeneration(generation);
+
+        List<GoogleFormResponse> responses;
+        if (includeApplicationCount) {
+            List<Long> googleFormIds = googleForms.stream()
+                    .map(GoogleForm::getId)
+                    .collect(Collectors.toList());
+            Map<Long, Long> applicationCountMap = webhookApplicationService.getApplicationCountsByGoogleForms(googleFormIds);
+
+            responses = googleForms.stream()
+                    .map(googleForm -> buildResponseWithApplicationCount(googleForm, applicationCountMap))
+                    .collect(Collectors.toList());
+        } else {
+            responses = googleForms.stream()
+                    .map(GoogleFormResponse::from)
+                    .collect(Collectors.toList());
+        }
+
+        return ResponseEntity.ok(
+                ApiRes.success(responses, generation + "기 구글 폼 " + responses.size() + "개를 조회했습니다.")
+        );
+    }
+
+    // 특정 기수의 활성화된 구글 폼 조회
+    @GetMapping("/generation/{generation}/active")
+    @Operation(summary = "특정 기수의 활성화된 구글 폼 조회", description = "특정 기수에서 현재 활성화된 구글 폼을 조회합니다.")
+    public ResponseEntity<ApiRes<GoogleFormResponse>> getActiveGoogleFormByGeneration(
+            @Parameter(description = "기수") @PathVariable Integer generation) {
+
+        return googleFormService.getActiveGoogleFormByGeneration(generation)
+                .map(googleForm -> {
+                    GoogleFormResponse response = buildResponseWithApplicationCount(googleForm);
+                    return ResponseEntity.ok(ApiRes.success(response));
+                })
+                .orElse(ResponseEntity.status(HttpStatus.NOT_FOUND)
+                        .body(ApiRes.failure(HttpStatus.NOT_FOUND, ErrorCode.NOT_FOUND)));
+    }
+
+    // 현재 활성화된 기수 조회
+    @GetMapping("/current-generation")
+    @Operation(summary = "현재 활성화된 기수 조회", description = "현재 활성화된 구글 폼의 기수를 조회합니다.")
+    public ResponseEntity<ApiRes<Map<String, Object>>> getCurrentGeneration() {
+
+        return googleFormService.getCurrentActiveGeneration()
+                .map(generation -> {
+                    Map<String, Object> result = Map.of(
+                            "currentGeneration", generation,
+                            "message", "현재 " + generation + "기가 활성화되어 있습니다."
+                    );
+                    return ResponseEntity.ok(ApiRes.success(result));
+                })
+                .orElse(ResponseEntity.status(HttpStatus.NOT_FOUND)
+                        .body(ApiRes.failure(HttpStatus.NOT_FOUND, ErrorCode.GOOGLE_FORM_NOT_ACTIVE)));
+    }
+
+    // 가장 최신 기수 조회
+    @GetMapping("/latest-generation")
+    @Operation(summary = "가장 최신 기수 조회", description = "등록된 구글 폼 중 가장 최신 기수를 조회합니다.")
+    public ResponseEntity<ApiRes<Map<String, Object>>> getLatestGeneration() {
+
+        return googleFormService.getLatestGeneration()
+                .map(generation -> {
+                    Map<String, Object> result = Map.of(
+                            "latestGeneration", generation,
+                            "message", "가장 최신 기수는 " + generation + "기입니다."
+                    );
+                    return ResponseEntity.ok(ApiRes.success(result));
+                })
+                .orElse(ResponseEntity.status(HttpStatus.NOT_FOUND)
+                        .body(ApiRes.failure(HttpStatus.NOT_FOUND, ErrorCode.NOT_FOUND)));
+    }
+
+    // 기수 업데이트
+    @PutMapping("/{id}/generation")
+    @Operation(summary = "구글 폼 기수 업데이트", description = "구글 폼의 기수를 업데이트합니다.")
+    public ResponseEntity<ApiRes<GoogleFormResponse>> updateGoogleFormGeneration(
+            @Parameter(description = "구글 폼 ID") @PathVariable Long id,
+            @RequestBody Map<String, Integer> request) {
+
+        Integer newGeneration = request.get("generation");
+        if (newGeneration == null || newGeneration <= 0) {
+            return ResponseEntity.badRequest()
+                    .body(ApiRes.failure(HttpStatus.BAD_REQUEST, ErrorCode.INVALID_ARGUMENT));
+        }
+
+        log.info("구글 폼 기수 업데이트 요청 - ID: {}, 기수: {}", id, newGeneration);
+
+        GoogleForm googleForm = googleFormService.updateGoogleFormGeneration(id, newGeneration);
+        GoogleFormResponse response = GoogleFormResponse.from(googleForm);
+
+        return ResponseEntity.ok(
+                ApiRes.success(response, "구글 폼 기수가 " + newGeneration + "기로 업데이트되었습니다.")
+        );
+    }
+
+    // 기수 범위로 구글 폼 조회
+    @GetMapping("/generation-range")
+    @Operation(summary = "기수 범위로 구글 폼 조회", description = "특정 기수 범위의 구글 폼들을 조회합니다.")
+    public ResponseEntity<ApiRes<List<GoogleFormResponse>>> getGoogleFormsByGenerationRange(
+            @Parameter(description = "시작 기수") @RequestParam Integer startGeneration,
+            @Parameter(description = "끝 기수") @RequestParam Integer endGeneration) {
+
+        if (startGeneration > endGeneration) {
+            return ResponseEntity.badRequest()
+                    .body(ApiRes.failure(HttpStatus.BAD_REQUEST, ErrorCode.INVALID_ARGUMENT));
+        }
+
+        List<GoogleForm> googleForms = googleFormService.getGoogleFormsByGenerationRange(startGeneration, endGeneration);
+        List<GoogleFormResponse> responses = googleForms.stream()
+                .map(GoogleFormResponse::from)
+                .collect(Collectors.toList());
+
+        return ResponseEntity.ok(
+                ApiRes.success(responses, startGeneration + "기부터 " + endGeneration + "기까지 구글 폼 " + responses.size() + "개를 조회했습니다.")
+        );
+    }
 }

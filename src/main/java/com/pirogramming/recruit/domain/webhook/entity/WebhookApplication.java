@@ -29,7 +29,7 @@ import lombok.NoArgsConstructor;
 @Entity
 @Table(name = "webhook_applications",
     uniqueConstraints = {
-        @UniqueConstraint(columnNames = {"google_form_id", "applicant_email"})
+        @UniqueConstraint(columnNames = {"google_form_id", "applicant_email"}), @UniqueConstraint(columnNames = {"homepage_user_id"})
     })
 @Getter
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
@@ -75,6 +75,14 @@ public class WebhookApplication extends BaseTimeEntity {
     @Column(name = "ai_analysis", columnDefinition = "jsonb")
     private Map<String, Object> aiAnalysis;
 
+    // 홈페이지 연동을 위한 필드들
+    @Column(name = "homepage_user_id", unique = true)
+    private Long homepageUserId; // 홈페이지에서 사용할 순차적 ID (1, 2, 3...)
+
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false)
+    private PassStatus passStatus = PassStatus.PENDING; // 합격 상태
+
     @Builder
     public WebhookApplication(GoogleForm googleForm, String applicantName, String applicantEmail,
                               String formResponseId, LocalDateTime submissionTimestamp, Map<String, Object> formData) {
@@ -85,6 +93,7 @@ public class WebhookApplication extends BaseTimeEntity {
         this.submissionTimestamp = submissionTimestamp;
         this.formData = formData;
         this.status = ProcessingStatus.PENDING;
+        this.passStatus = PassStatus.PENDING;
     }
 
     // 처리 완료 상태로 변경
@@ -114,9 +123,50 @@ public class WebhookApplication extends BaseTimeEntity {
         return value != null ? value.toString() : null;
     }
 
+    // 호메이지 User ID 설정
+    public void setHomepageUserId(Long homepageUserId) {
+        this.homepageUserId = homepageUserId;
+    }
+
+    // 합격 상태 관리 메서드들
+    public void markAsFirstPass() {
+        this.passStatus = PassStatus.FIRST_PASS;
+    }
+
+    public void markAsFinalPass() {
+        this.passStatus = PassStatus.FINAL_PASS;
+    }
+
+    public void markAsPassFailed() {
+        this.passStatus = PassStatus.FAILED;
+    }
+
+    public void resetPassStatus() {
+        this.passStatus = PassStatus.PENDING;
+    }
+
+    // 웹훅 처리 상태 enum
     public enum ProcessingStatus {
         PENDING,    // 처리 대기(웹훅으로 받았지만 아직 처리 안됨)
         COMPLETED,  // 처리 완료
         FAILED      // 처리 실패
+    }
+
+    // 합격 상태 enum
+    public enum PassStatus {
+        PENDING(0),     // 대기중/미정
+        FAILED(0),      // 불합격
+        FIRST_PASS(1),  // 1차 합격
+        FINAL_PASS(2);  // 최종 합격
+
+        private final int csvValue;
+
+        PassStatus(int csvValue) {
+            this.csvValue = csvValue;
+        }
+
+        public int getCsvValue() {
+            return csvValue;
+        }
     }
 }

@@ -67,3 +67,7 @@ openai:
 webhook:
   api:
     key: ${WEBHOOK_API_KEY}
+
+# 리크루팅 관련 설정
+recruitment:
+  current-level: 25  # 현재 리크루팅 기수 (25기)
