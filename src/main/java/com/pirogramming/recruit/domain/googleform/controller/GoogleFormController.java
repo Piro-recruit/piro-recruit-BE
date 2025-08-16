@@ -6,6 +6,7 @@ import java.util.stream.Collectors;
 
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -290,6 +291,21 @@ public class GoogleFormController {
 
         return ResponseEntity.ok(
                 ApiRes.success(responses, "'" + title + "'로 검색된 구글 폼 " + responses.size() + "개를 조회했습니다.")
+        );
+    }
+
+    // 구글 폼 삭제
+    @DeleteMapping("/{id}")
+    @Operation(summary = "구글 폼 삭제", description = "특정 구글 폼을 삭제합니다. 활성화된 폼은 삭제할 수 없습니다.")
+    public ResponseEntity<ApiRes<Void>> deleteGoogleForm(
+            @Parameter(description = "구글 폼 ID") @PathVariable Long id) {
+
+        log.info("구글 폼 삭제 요청 - ID: {}", id);
+
+        googleFormService.deleteGoogleForm(id);
+
+        return ResponseEntity.ok(
+                ApiRes.success(null, "구글 폼이 성공적으로 삭제되었습니다.")
         );
     }
 

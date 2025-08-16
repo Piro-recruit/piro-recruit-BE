@@ -2,7 +2,6 @@ package com.pirogramming.recruit.global.exception.code;
 
 import lombok.AllArgsConstructor;
 import lombok.Getter;
-import org.springframework.http.HttpStatus;
 
 @Getter
 @AllArgsConstructor
@@ -22,6 +21,7 @@ public enum ErrorCode {
 	GOOGLE_FORM_NOT_FOUND(2201, "해당 구글 폼을 찾을 수 없습니다."),
 	GOOGLE_FORM_NOT_ACTIVE(2202, "현재 활성화된 구글 폼이 없습니다."),
 	GOOGLE_FORM_DUPLICATE_FORM_ID(2203, "이미 등록된 구글폼 ID입니다."),
+	GOOGLE_FORM_ACTIVE_CANNOT_DELETE(2204, "현재 활성화된 구글 폼은 삭제할 수 없습니다."),
 
 	// -- admin 로그인 관련 오류 --
 	INVALID_LOGIN_CODE(3001, "로그인 코드가 유효하지 않습니다."),

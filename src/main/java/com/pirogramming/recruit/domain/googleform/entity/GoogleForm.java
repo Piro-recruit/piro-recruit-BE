@@ -7,6 +7,8 @@ import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 
+import java.time.LocalDateTime;
+
 @Entity
 @Table(name = "google_forms")
 @Getter
@@ -35,16 +37,24 @@ public class GoogleForm extends BaseTimeEntity {
     @Column(columnDefinition = "TEXT")
     private String description; // 폼 설명
 
+    @Column
+    private LocalDateTime recruitingStartDate; // 리쿠르팅 시작 날짜
+
+    @Column
+    private LocalDateTime recruitingEndDate; // 리쿠르팅 종료 날짜
+
     @Column(nullable = false)
     private Integer generation; // 기수 (23, 24, 25기 등)
 
     @Builder
-    public GoogleForm(String formId, String title, String formUrl, String sheetUrl, String description, Integer generation) {
+    public GoogleForm(String formId, String title, String formUrl, String sheetUrl, String description, Integer generation, LocalDateTime recruitingStartDate, LocalDateTime recruitingEndDate) {
         this.formId = formId;
         this.title = title;
         this.formUrl = formUrl;
         this.sheetUrl = sheetUrl;
         this.description = description;
+        this.recruitingStartDate = recruitingStartDate;
+        this.recruitingEndDate = recruitingEndDate;
         this.generation = generation;
         this.isActive = false;
     }
