@@ -73,7 +73,7 @@ public class GoogleFormController {
     @GetMapping
     @Operation(summary = "전체 구글 폼 조회", description = "모든 구글 폼을 최신순으로 조회합니다.")
     public ResponseEntity<ApiRes<List<GoogleFormResponse>>> getAllGoogleForms(
-            @Parameter(description = "지원서 개수 포함 여부") @RequestParam(defaultValue = "false") boolean includeApplicationCount) {
+            @Parameter(description = "지원서 개수 포함 여부") @RequestParam(defaultValue = "true") boolean includeApplicationCount) {
 
         List<GoogleForm> googleForms = googleFormService.getAllGoogleForms();
 
@@ -149,27 +149,6 @@ public class GoogleFormController {
                         .body(ApiRes.failure(HttpStatus.NOT_FOUND, ErrorCode.NOT_FOUND)));
     }
 
-    // 활성화된 구글 폼들 조회
-    @GetMapping("/active-forms")
-    @Operation(summary = "활성화된 구글 폼들 조회", description = "활성화된 모든 구글 폼을 조회합니다.")
-    public ResponseEntity<ApiRes<List<GoogleFormResponse>>> getActiveGoogleForms() {
-
-        List<GoogleForm> googleForms = googleFormService.getActiveGoogleForms();
-        
-        // 배치 쿼리로 N+1 문제 해결
-        List<Long> googleFormIds = googleForms.stream()
-                .map(GoogleForm::getId)
-                .collect(Collectors.toList());
-        Map<Long, Long> applicationCountMap = webhookApplicationService.getApplicationCountsByGoogleForms(googleFormIds);
-        
-        List<GoogleFormResponse> responses = googleForms.stream()
-                .map(googleForm -> buildResponseWithApplicationCount(googleForm, applicationCountMap))
-                .collect(Collectors.toList());
-
-        return ResponseEntity.ok(
-                ApiRes.success(responses, "활성화된 구글 폼 " + responses.size() + "개를 조회했습니다.")
-        );
-    }
 
     // 구글 폼 활성화
     @PutMapping("/{id}/activate")

@@ -60,10 +60,6 @@ public class GoogleFormService {
         return googleFormRepository.findAllOrderByCreatedAtDesc();
     }
 
-    // 활성화된 구글 폼 목록 조회
-    public List<GoogleForm> getActiveGoogleForms() {
-        return googleFormRepository.findByIsActiveTrueOrderByCreatedAtDesc();
-    }
 
     // 새 구글 폼 생성
     @Transactional
