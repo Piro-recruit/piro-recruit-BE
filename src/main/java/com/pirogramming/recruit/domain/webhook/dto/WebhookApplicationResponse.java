@@ -26,6 +26,13 @@ public class WebhookApplicationResponse {
     private String formResponseId;
     private LocalDateTime submissionTimestamp;
 
+    // 추가된 개별 필드들
+    private String school; // 학교
+    private String department; // 학과
+    private String grade; // 학년
+    private String major; // 전공
+    private String phoneNumber; // 전화번호
+
     // 유연한 폼 데이터
     private Map<String, Object> formData;
 
@@ -52,6 +59,11 @@ public class WebhookApplicationResponse {
             .applicantEmail(entity.getApplicantEmail())
             .formResponseId(entity.getFormResponseId())
             .submissionTimestamp(entity.getSubmissionTimestamp())
+            .school(entity.getSchool())
+            .department(entity.getDepartment())
+            .grade(entity.getGrade())
+            .major(entity.getMajor())
+            .phoneNumber(entity.getPhoneNumber())
             .formData(entity.getFormData())
             .status(entity.getStatus().name())
             .errorMessage(entity.getErrorMessage())

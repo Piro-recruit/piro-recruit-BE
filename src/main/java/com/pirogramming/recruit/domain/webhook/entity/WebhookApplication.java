@@ -51,6 +51,22 @@ public class WebhookApplication extends BaseTimeEntity {
     @Column(nullable = false)
     private String applicantEmail; // 지원자 이메일(중복 방지용)
 
+    // 추가된 개별 필드들
+    @Column
+    private String school; // 학교
+
+    @Column
+    private String department; // 학과
+
+    @Column
+    private String grade; // 학년
+
+    @Column
+    private String major; // 전공
+
+    @Column
+    private String phoneNumber; // 전화번호
+
     @Column(nullable = false, unique = true)
     private String formResponseId; // 구글 폼 응답 고유 ID
 
@@ -85,13 +101,19 @@ public class WebhookApplication extends BaseTimeEntity {
 
     @Builder
     public WebhookApplication(GoogleForm googleForm, String applicantName, String applicantEmail,
-                              String formResponseId, LocalDateTime submissionTimestamp, Map<String, Object> formData) {
+                              String formResponseId, LocalDateTime submissionTimestamp, Map<String, Object> formData,
+                              String school, String department, String grade, String major, String phoneNumber) {
         this.googleForm = googleForm;
         this.applicantName = applicantName;
         this.applicantEmail = applicantEmail;
         this.formResponseId = formResponseId;
         this.submissionTimestamp = submissionTimestamp;
         this.formData = formData;
+        this.school = school;
+        this.department = department;
+        this.grade = grade;
+        this.major = major;
+        this.phoneNumber = phoneNumber;
         this.status = ProcessingStatus.PENDING;
         this.passStatus = PassStatus.PENDING;
     }
