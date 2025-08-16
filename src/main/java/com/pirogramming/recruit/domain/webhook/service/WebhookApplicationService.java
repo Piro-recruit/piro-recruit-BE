@@ -232,4 +232,87 @@ public class WebhookApplicationService {
         
         return statistics;
     }
+
+    // ID로 지원서 조회 (필수) -> 없으면 예외 발생
+    public WebhookApplication getApplicationByIdRequired(Long id) {
+        return webhookApplicationRepository.findById(id)
+                .orElseThrow(() -> new RecruitException(HttpStatus.NOT_FOUND, ErrorCode.WEBHOOK_APPLICATION_NOT_FOUND));
+    }
+
+    // 합격 상태 변경 (개별)
+    @Transactional
+    public WebhookApplication updatePassStatus(Long id, WebhookApplication.PassStatus passStatus) {
+        WebhookApplication application = getApplicationByIdRequired(id);
+
+        switch (passStatus) {
+            case FIRST_PASS -> application.markAsFirstPass();
+            case FINAL_PASS -> application.markAsFinalPass();
+            case FAILED -> application.markAsPassFailed();
+            case PENDING -> application.resetPassStatus();
+        }
+
+        WebhookApplication saved = webhookApplicationRepository.save(application);
+        log.info("합격 상태 변경: {} -> {}", application.getApplicantEmail(), passStatus);
+
+        return saved;
+    }
+
+    // 합격 상태 일괄 변경
+    @Transactional
+    public List<WebhookApplication> updatePassStatusAll(List<Long> ids, WebhookApplication.PassStatus passStatus) {
+        List<WebhookApplication> applications = webhookApplicationRepository.findAllById(ids);
+
+        for (WebhookApplication app : applications) {
+            switch (passStatus) {
+                case FIRST_PASS -> app.markAsFirstPass();
+                case FINAL_PASS -> app.markAsFinalPass();
+                case FAILED -> app.markAsPassFailed();
+                case PENDING -> app.resetPassStatus();
+            }
+        }
+
+        List<WebhookApplication> saved = webhookApplicationRepository.saveAll(applications);
+        log.info("일괄 합격 상태 변경: {} 건 -> {}", applications.size(), passStatus);
+
+        return saved;
+    }
+
+    // 합격 상태별 지원서 조회
+    public List<WebhookApplication> getApplicationsByPassStatus(WebhookApplication.PassStatus passStatus) {
+        return webhookApplicationRepository.findByPassStatus(passStatus);
+    }
+
+    // 합격 상태별 개수 조회
+    public long getApplicationCountByPassStatus(WebhookApplication.PassStatus passStatus) {
+        return webhookApplicationRepository.countByPassStatus(passStatus);
+    }
+
+    // 구글 폼별 + 합격 상태별 지원서 조회
+    public List<WebhookApplication> getApplicationsByGoogleFormAndPassStatus(Long googleFormId, WebhookApplication.PassStatus passStatus) {
+        return webhookApplicationRepository.findByGoogleFormIdAndPassStatus(googleFormId, passStatus);
+    }
+
+    // 합격 상태 통계 조회
+    public Map<WebhookApplication.PassStatus, Long> getPassStatusStatistics() {
+        Map<WebhookApplication.PassStatus, Long> statistics = new HashMap<>();
+
+        for (WebhookApplication.PassStatus status : WebhookApplication.PassStatus.values()) {
+            long count = getApplicationCountByPassStatus(status);
+            statistics.put(status, count);
+        }
+
+        return statistics;
+    }
+
+    // 구글 폼별 합격 상태 통계 조회
+    public Map<WebhookApplication.PassStatus, Long> getPassStatusStatisticsByGoogleForm(Long googleFormId) {
+        Map<WebhookApplication.PassStatus, Long> statistics = new HashMap<>();
+
+        for (WebhookApplication.PassStatus status : WebhookApplication.PassStatus.values()) {
+            List<WebhookApplication> applications = getApplicationsByGoogleFormAndPassStatus(googleFormId, status);
+            statistics.put(status, (long) applications.size());
+        }
+
+        return statistics;
+    }
 }

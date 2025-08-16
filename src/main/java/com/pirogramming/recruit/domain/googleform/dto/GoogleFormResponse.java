@@ -22,6 +22,7 @@ public class GoogleFormResponse {
     private String sheetUrl;
     private Boolean isActive;
     private String description;
+    private Integer generation;
     private LocalDateTime recruitingStartDate;
     private LocalDateTime recruitingEndDate;
 
@@ -44,6 +45,7 @@ public class GoogleFormResponse {
                 .description(entity.getDescription())
                 .recruitingStartDate(entity.getRecruitingStartDate())
                 .recruitingEndDate(entity.getRecruitingEndDate())
+                .generation(entity.getGeneration())
                 .createdAt(entity.getCreatedAt())
                 .updatedAt(entity.getUpdatedAt())
                 .build();

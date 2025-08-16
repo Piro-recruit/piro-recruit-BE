@@ -4,6 +4,7 @@ import com.pirogramming.recruit.domain.googleform.entity.GoogleForm;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
 import java.util.List;
@@ -38,4 +39,30 @@ public interface GoogleFormRepository extends JpaRepository<GoogleForm, Long> {
     @Modifying
     @Query("UPDATE GoogleForm g SET g.isActive = false WHERE g.isActive = true")
     int deactivateAllGoogleForms();
+
+    // 특정 기수의 구글 폼 조회
+    List<GoogleForm> findByGenerationOrderByCreatedAtDesc(Integer generation);
+
+    // 특정 기수의 활성화된 구글 폼 조회
+    Optional<GoogleForm> findByGenerationAndIsActiveTrue(Integer generation);
+
+    // 특정 기수에 구글 폼이 존재하는지 확인
+    boolean existsByGeneration(Integer generation);
+
+    // 기수별 구글 폼 개수 조회
+    long countByGeneration(Integer generation);
+
+    // 현재 활성화된 구글 폼의 기수 조회
+    @Query("SELECT g.generation FROM GoogleForm g WHERE g.isActive = true")
+    Optional<Integer> findCurrentActiveGeneration();
+
+    // 가장 최신 기수 조회
+    @Query("SELECT MAX(g.generation) FROM GoogleForm g")
+    Optional<Integer> findMaxGeneration();
+
+    // 기수 범위로 구글 폼 조회
+    @Query("SELECT g FROM GoogleForm g WHERE g.generation BETWEEN :startGen AND :endGen ORDER BY g.generation DESC, g.createdAt DESC")
+    List<GoogleForm> findByGenerationBetweenOrderByGenerationDescCreatedAtDesc(
+            @Param("startGen") Integer startGeneration,
+            @Param("endGen") Integer endGeneration);
 }

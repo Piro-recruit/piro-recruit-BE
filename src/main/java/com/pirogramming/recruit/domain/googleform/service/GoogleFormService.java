@@ -64,7 +64,7 @@ public class GoogleFormService {
     // 새 구글 폼 생성
     @Transactional
     public GoogleForm createGoogleForm(GoogleForm googleForm) {
-        log.info("새 구글 폼 생성: {}", googleForm.getTitle());
+        log.info("새 구글 폼 생성: {} ({}기)", googleForm.getTitle(), googleForm.getGeneration());
 
         // 중복 검사
         if (googleFormRepository.existsByFormId(googleForm.getFormId())) {
@@ -144,7 +144,7 @@ public class GoogleFormService {
         log.info("구글 폼 삭제: {}", googleFormId);
 
         GoogleForm googleForm = getGoogleFormByIdRequired(googleFormId);
-        
+
         // 활성화된 폼인지 확인
         if (Boolean.TRUE.equals(googleForm.getIsActive())) {
             log.warn("활성화된 구글 폼 삭제 시도: {}", googleFormId);
@@ -153,5 +153,61 @@ public class GoogleFormService {
 
         googleFormRepository.delete(googleForm);
         log.info("구글 폼 삭제 완료: {}", googleFormId);
+    }
+
+    // 특정 기수의 구글 폼들 조회
+    public List<GoogleForm> getGoogleFormsByGeneration(Integer generation) {
+        return googleFormRepository.findByGenerationOrderByCreatedAtDesc(generation);
+    }
+
+    // 특정 기수의 활성화된 구글 폼 조회
+    public Optional<GoogleForm> getActiveGoogleFormByGeneration(Integer generation) {
+        return googleFormRepository.findByGenerationAndIsActiveTrue(generation);
+    }
+
+    // 특정 기수의 활성화된 구글 폼 조회 (필수)
+    public GoogleForm getActiveGoogleFormByGenerationRequired(Integer generation) {
+        return getActiveGoogleFormByGeneration(generation)
+                .orElseThrow(() -> new RecruitException(HttpStatus.NOT_FOUND,
+                        ErrorCode.GOOGLE_FORM_NOT_FOUND));
+    }
+
+    // 현재 활성화된 기수 조회
+    public Optional<Integer> getCurrentActiveGeneration() {
+        return googleFormRepository.findCurrentActiveGeneration();
+    }
+
+    // 현재 활성화된 기수 조회 (필수)
+    public Integer getCurrentActiveGenerationRequired() {
+        return getCurrentActiveGeneration()
+                .orElseThrow(() -> new RecruitException(HttpStatus.NOT_FOUND,
+                        ErrorCode.GOOGLE_FORM_NOT_ACTIVE));
+    }
+
+    // 가장 최신 기수 조회
+    public Optional<Integer> getLatestGeneration() {
+        return googleFormRepository.findMaxGeneration();
+    }
+
+    // 특정 기수가 존재하는지 확인
+    public boolean existsByGeneration(Integer generation) {
+        return googleFormRepository.existsByGeneration(generation);
+    }
+
+    // 기수 범위로 구글 폼 조회
+    public List<GoogleForm> getGoogleFormsByGenerationRange(Integer startGeneration, Integer endGeneration) {
+        return googleFormRepository.findByGenerationBetweenOrderByGenerationDescCreatedAtDesc(
+                startGeneration, endGeneration);
+    }
+
+    // 기수 업데이트
+    @Transactional
+    public GoogleForm updateGoogleFormGeneration(Long googleFormId, Integer newGeneration) {
+        log.info("구글 폼 {} 기수 업데이트: {}", googleFormId, newGeneration);
+
+        GoogleForm googleForm = getGoogleFormByIdRequired(googleFormId);
+        googleForm.updateGeneration(newGeneration);
+
+        return googleFormRepository.save(googleForm);
     }
 }
