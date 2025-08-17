@@ -187,27 +187,7 @@ pipeline {
                                     -e JWT_SECRET=${JWT_SECRET} \\
                                     -e ROOT_ADMIN_LOGIN_CODE=${ROOT_ADMIN_LOGIN_CODE} \\
                                     -e WEBHOOK_API_KEY=${WEBHOOK_API_KEY} \\
-                                    -e SPRING_JPA_HIBERNATE_DDL_AUTO=update \\ubuntu@piro-recruiting-app-server:~$ sudo certbot --nginx -d api.piro-recruiting.kro.kr
-                                                                              Saving debug log to /var/log/letsencrypt/letsencrypt.log
-                                                                              Requesting a certificate for api.piro-recruiting.kro.kr
-
-                                                                              Successfully received certificate.
-                                                                              Certificate is saved at: /etc/letsencrypt/live/api.piro-recruiting.kro.kr/fullchain.pem
-                                                                              Key is saved at:         /etc/letsencrypt/live/api.piro-recruiting.kro.kr/privkey.pem
-                                                                              This certificate expires on 2025-11-15.
-                                                                              These files will be updated when the certificate renews.
-                                                                              Certbot has set up a scheduled task to automatically renew this certificate in the background.
-
-                                                                              Deploying certificate
-                                                                              Could not install certificate
-
-                                                                              NEXT STEPS:
-                                                                              - The certificate was saved, but could not be installed (installer: nginx). After fixing the error shown below, try installing it again by running:
-                                                                                certbot install --cert-name api.piro-recruiting.kro.kr
-
-                                                                              Could not automatically find a matching server block for api.piro-recruiting.kro.kr. Set the `server_name` directive to use the Nginx installer.
-                                                                              Ask for help or search for solutions at https://community.letsencrypt.org. See the logfile /var/log/letsencrypt/letsencrypt.log or re-run Certbot with -v for more details.
-
+                                    -e SPRING_JPA_HIBERNATE_DDL_AUTO=update \\
                                     -e JAVA_OPTS="-Xmx256m -XX:+UseG1GC" \\
                                     ${DOCKER_IMAGE}:${DOCKER_TAG}
 
