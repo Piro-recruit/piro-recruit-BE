@@ -270,9 +270,9 @@ pipeline {
                     echo "🔄 Nginx 트래픽 전환 중..."
                     sshagent(['app-server-ssh']) {
                         sh """
-                            ssh -o StrictHostKeyChecking=no ${APP_USER}@${APP_SERVER} '
+                            ssh -o StrictHostKeyChecking=no ${APP_USER}@${APP_SERVER} "
                                 # Nginx app 설정 파일 업데이트
-                                sudo tee /etc/nginx/sites-available/app > /dev/null <<EOF
+                                sudo tee /etc/nginx/sites-available/app > /dev/null <<'NGINX_CONFIG'
 upstream app_backend {
     server localhost:${deployPort};
 }
@@ -281,7 +281,7 @@ upstream app_backend {
 server {
     listen 80;
     server_name api.piro-recruiting.kro.kr _;
-    return 301 https://\\\$server_name\\\$request_uri;
+    return 301 https://\$server_name\$request_uri;
 }
 
 # HTTPS server
@@ -302,22 +302,22 @@ server {
     ssl_session_tickets off;
 
     # Security headers
-    add_header Strict-Transport-Security "max-age=63072000; includeSubDomains; preload";
+    add_header Strict-Transport-Security \"max-age=63072000; includeSubDomains; preload\";
     add_header X-Frame-Options DENY;
     add_header X-Content-Type-Options nosniff;
-    add_header X-XSS-Protection "1; mode=block";
+    add_header X-XSS-Protection \"1; mode=block\";
 
     location /health {
-        return 200 "healthy\\n";
+        return 200 \"healthy\\n\";
         add_header Content-Type text/plain;
     }
 
     location / {
         proxy_pass http://app_backend;
-        proxy_set_header Host \\\$host;
-        proxy_set_header X-Real-IP \\\$remote_addr;
-        proxy_set_header X-Forwarded-For \\\$proxy_add_x_forwarded_for;
-        proxy_set_header X-Forwarded-Proto \\\$scheme;
+        proxy_set_header Host \$host;
+        proxy_set_header X-Real-IP \$remote_addr;
+        proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto \$scheme;
 
         proxy_connect_timeout 10s;
         proxy_send_timeout 15s;
@@ -326,15 +326,15 @@ server {
 
     location /actuator/health {
         proxy_pass http://app_backend/actuator/health;
-        proxy_set_header Host \\\$host;
+        proxy_set_header Host \$host;
     }
 
     location /deployment-status {
-        return 200 "Active: ${deployPort} (${deployColor}) - Build: ${DOCKER_TAG}";
+        return 200 \"Active: ${deployPort} (${deployColor}) - Build: ${DOCKER_TAG}\";
         add_header Content-Type text/plain;
     }
 }
-EOF
+NGINX_CONFIG
 
                                 # Nginx 테스트 및 재시작
                                 if sudo nginx -t; then
@@ -345,7 +345,7 @@ EOF
                                     sudo nginx -t
                                     exit 1
                                 fi
-                            '
+                            "
                         """
                     }
 
