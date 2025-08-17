@@ -266,34 +266,30 @@ pipeline {
                         error "❌ 헬스체크 실패: ${maxRetries}번 시도 후에도 응답 없음"
                     }
 
-                    // Nginx 설정 업데이트 (app 파일 사용 - 핵심 수정!)
+                    // Nginx 설정 업데이트 (app 파일 사용 - 안전한 방법)
                     echo "🔄 Nginx 트래픽 전환 중..."
                     sshagent(['app-server-ssh']) {
                         sh """
-                            ssh -o StrictHostKeyChecking=no ${APP_USER}@${APP_SERVER} "
-                                # Nginx app 설정 파일 업데이트
-                                sudo tee /etc/nginx/sites-available/app > /dev/null <<'NGINX_CONFIG'
+                            ssh -o StrictHostKeyChecking=no ${APP_USER}@${APP_SERVER} '
+                                # Nginx 설정 파일 생성
+                                cat > /tmp/nginx-app.conf << "NGINX_EOF"
 upstream app_backend {
     server localhost:${deployPort};
 }
 
-# HTTP to HTTPS redirect
 server {
     listen 80;
     server_name api.piro-recruiting.kro.kr _;
     return 301 https://\$server_name\$request_uri;
 }
 
-# HTTPS server
 server {
     listen 443 ssl http2;
     server_name api.piro-recruiting.kro.kr _;
 
-    # SSL Configuration (Let's Encrypt certificates)
     ssl_certificate /etc/letsencrypt/live/api.piro-recruiting.kro.kr/fullchain.pem;
     ssl_certificate_key /etc/letsencrypt/live/api.piro-recruiting.kro.kr/privkey.pem;
     
-    # SSL Security settings
     ssl_protocols TLSv1.2 TLSv1.3;
     ssl_prefer_server_ciphers on;
     ssl_ciphers ECDHE-RSA-AES256-GCM-SHA512:DHE-RSA-AES256-GCM-SHA512:ECDHE-RSA-AES256-GCM-SHA384:DHE-RSA-AES256-GCM-SHA384;
@@ -301,14 +297,13 @@ server {
     ssl_session_cache shared:SSL:10m;
     ssl_session_tickets off;
 
-    # Security headers
-    add_header Strict-Transport-Security \"max-age=63072000; includeSubDomains; preload\";
+    add_header Strict-Transport-Security "max-age=63072000; includeSubDomains; preload";
     add_header X-Frame-Options DENY;
     add_header X-Content-Type-Options nosniff;
-    add_header X-XSS-Protection \"1; mode=block\";
+    add_header X-XSS-Protection "1; mode=block";
 
     location /health {
-        return 200 \"healthy\\n\";
+        return 200 "healthy\\n";
         add_header Content-Type text/plain;
     }
 
@@ -318,7 +313,6 @@ server {
         proxy_set_header X-Real-IP \$remote_addr;
         proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
         proxy_set_header X-Forwarded-Proto \$scheme;
-
         proxy_connect_timeout 10s;
         proxy_send_timeout 15s;
         proxy_read_timeout 15s;
@@ -330,11 +324,16 @@ server {
     }
 
     location /deployment-status {
-        return 200 \"Active: ${deployPort} (${deployColor}) - Build: ${DOCKER_TAG}\";
+        return 200 "Active: ${deployPort} (${deployColor}) - Build: ${DOCKER_TAG}";
         add_header Content-Type text/plain;
     }
 }
-NGINX_CONFIG
+NGINX_EOF
+
+                                # 설정 파일 이동 및 권한 설정
+                                sudo mv /tmp/nginx-app.conf /etc/nginx/sites-available/app
+                                sudo chown root:root /etc/nginx/sites-available/app
+                                sudo chmod 644 /etc/nginx/sites-available/app
 
                                 # Nginx 테스트 및 재시작
                                 if sudo nginx -t; then
@@ -345,7 +344,7 @@ NGINX_CONFIG
                                     sudo nginx -t
                                     exit 1
                                 fi
-                            "
+                            '
                         """
                     }
 
