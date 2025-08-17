@@ -1,7 +1,9 @@
 package com.pirogramming.recruit.domain.googleform.controller;
 
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.stream.Collectors;
 
 import org.springframework.http.HttpStatus;
@@ -163,21 +165,17 @@ public class GoogleFormController {
 
         Optional<GoogleForm> activeGoogleForm = googleFormService.getActiveGoogleForm();
         
-        Map<String, Object> result;
+        Map<String, Object> result = new HashMap<>();
         String message;
         
         if (activeGoogleForm.isPresent()) {
             GoogleForm googleForm = activeGoogleForm.get();
-            result = Map.of(
-                "exists", true,
-                "formUrl", googleForm.getFormUrl()
-            );
+            result.put("exists", true);
+            result.put("formUrl", googleForm.getFormUrl());
             message = "활성화된 구글 폼이 있습니다.";
         } else {
-            result = Map.of(
-                "exists", false,
-                "formUrl", (Object) null
-            );
+            result.put("exists", false);
+            result.put("formUrl", null);
             message = "활성화된 구글 폼이 없습니다.";
         }
 
