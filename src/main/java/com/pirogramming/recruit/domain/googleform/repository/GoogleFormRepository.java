@@ -35,6 +35,9 @@ public interface GoogleFormRepository extends JpaRepository<GoogleForm, Long> {
     // 폼 ID 존재 여부 확인
     boolean existsByFormId(String formId);
 
+    // 활성화된 구글 폼 존재 여부 확인
+    boolean existsByIsActiveTrue();
+
     // 모든 구글 폼을 비활성화 (원자적 연산)
     @Modifying
     @Query("UPDATE GoogleForm g SET g.isActive = false WHERE g.isActive = true")

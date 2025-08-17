@@ -33,6 +33,11 @@ public class GoogleFormService {
                 .orElseThrow(() -> new RecruitException(HttpStatus.NOT_FOUND, ErrorCode.GOOGLE_FORM_NOT_ACTIVE));
     }
 
+    // 활성화된 구글 폼 존재 여부 확인
+    public boolean hasActiveGoogleForm() {
+        return googleFormRepository.existsByIsActiveTrue();
+    }
+
     // ID로 구글 폼 조회
     public Optional<GoogleForm> getGoogleFormById(Long id) {
         return googleFormRepository.findById(id);

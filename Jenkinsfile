@@ -187,7 +187,7 @@ pipeline {
                                     -e JWT_SECRET=${JWT_SECRET} \\
                                     -e ROOT_ADMIN_LOGIN_CODE=${ROOT_ADMIN_LOGIN_CODE} \\
                                     -e WEBHOOK_API_KEY=${WEBHOOK_API_KEY} \\
-                                    -e SPRING_JPA_HIBERNATE_DDL_AUTO=create \\
+                                    -e SPRING_JPA_HIBERNATE_DDL_AUTO=update \\
                                     -e JAVA_OPTS="-Xmx256m -XX:+UseG1GC" \\
                                     ${DOCKER_IMAGE}:${DOCKER_TAG}
 

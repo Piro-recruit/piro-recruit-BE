@@ -156,6 +156,18 @@ public class GoogleFormController {
                         .body(ApiRes.failure(HttpStatus.NOT_FOUND, ErrorCode.NOT_FOUND)));
     }
 
+    // 활성화된 구글 폼 존재 여부 확인 (인증 불필요)
+    @GetMapping("/active/exists")
+    @Operation(summary = "활성화된 구글 폼 존재 여부 확인", description = "현재 활성화된 구글 폼이 있는지 여부만 반환합니다.")
+    public ResponseEntity<ApiRes<Map<String, Boolean>>> checkActiveGoogleFormExists() {
+
+        boolean exists = googleFormService.hasActiveGoogleForm();
+        Map<String, Boolean> result = Map.of("exists", exists);
+
+        return ResponseEntity.ok(ApiRes.success(result, 
+                exists ? "활성화된 구글 폼이 있습니다." : "활성화된 구글 폼이 없습니다."));
+    }
+
 
     // 구글 폼 활성화
     @PutMapping("/{id}/activate")
