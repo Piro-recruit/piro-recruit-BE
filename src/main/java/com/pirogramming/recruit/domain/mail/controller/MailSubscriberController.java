@@ -22,6 +22,7 @@ import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import com.pirogramming.recruit.global.security.RequireRoot;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 
@@ -53,6 +54,7 @@ public class MailSubscriberController {
 		@ApiResponse(responseCode = "500", description = "서버 오류")
 	})
 	@GetMapping("/{email}")
+	@RequireRoot
 	public ResponseEntity<ApiRes<MailSubscriberDto.Response>> getSubscriber(@PathVariable String email) {
 		MailSubscriberDto.Response response = mailSubscribeService.getSubscriber(email);
 		return ResponseEntity.ok(ApiRes.success(response));
@@ -64,6 +66,7 @@ public class MailSubscriberController {
 		@ApiResponse(responseCode = "500", description = "서버 오류")
 	})
 	@GetMapping
+	@RequireRoot
 	public ResponseEntity<ApiRes<Page<MailSubscriberDto.Response>>> getAllSubscribers(
 			@PageableDefault(size = 20) Pageable pageable,
 			@RequestParam(required = false) String email) {
@@ -79,6 +82,7 @@ public class MailSubscriberController {
 		@ApiResponse(responseCode = "500", description = "서버 오류")
 	})
 	@PutMapping("/{email}")
+	@RequireRoot
 	public ResponseEntity<ApiRes<MailSubscriberDto.Response>> updateSubscriber(
 			@PathVariable String email,
 			@Valid @RequestBody MailSubscriberDto.UpdateRequest request) {
@@ -93,6 +97,7 @@ public class MailSubscriberController {
 		@ApiResponse(responseCode = "500", description = "서버 오류")
 	})
 	@DeleteMapping("/{email}")
+	@RequireRoot
 	public ResponseEntity<ApiRes<String>> deleteSubscriber(@PathVariable String email) {
 		mailSubscribeService.deleteSubscriber(email);
 		return ResponseEntity.ok(ApiRes.success("구독자가 성공적으로 삭제되었습니다"));
@@ -104,6 +109,7 @@ public class MailSubscriberController {
 		@ApiResponse(responseCode = "500", description = "서버 오류")
 	})
 	@GetMapping("/count")
+	@RequireRoot
 	public ResponseEntity<ApiRes<Long>> getSubscriberCount() {
 		long count = mailSubscribeService.getSubscriberCount();
 		return ResponseEntity.ok(ApiRes.success(count));

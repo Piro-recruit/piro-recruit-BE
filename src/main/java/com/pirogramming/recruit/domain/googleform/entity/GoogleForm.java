@@ -1,6 +1,7 @@
 package com.pirogramming.recruit.domain.googleform.entity;
 
 import com.pirogramming.recruit.global.entity.BaseTimeEntity;
+import com.pirogramming.recruit.domain.webhook.entity.WebhookApplication;
 import jakarta.persistence.*;
 import lombok.AccessLevel;
 import lombok.Builder;
@@ -8,6 +9,8 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 
 import java.time.LocalDateTime;
+import java.util.ArrayList;
+import java.util.List;
 
 @Entity
 @Table(name = "google_forms")
@@ -45,6 +48,10 @@ public class GoogleForm extends BaseTimeEntity {
 
     @Column(nullable = false)
     private Integer generation; // 기수 (23, 24, 25기 등)
+
+    // 연관된 지원서들 (구글 폼 삭제 시 함께 삭제)
+    @OneToMany(mappedBy = "googleForm", cascade = CascadeType.ALL, orphanRemoval = true)
+    private List<WebhookApplication> applications = new ArrayList<>();
 
     @Builder
     public GoogleForm(String formId, String title, String formUrl, String sheetUrl, String description, Integer generation, LocalDateTime recruitingStartDate, LocalDateTime recruitingEndDate) {

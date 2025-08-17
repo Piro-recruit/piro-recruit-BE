@@ -7,7 +7,8 @@ import java.util.stream.Collectors;
 import com.pirogramming.recruit.domain.admin.dto.AllPassStatusUpdateRequest;
 import com.pirogramming.recruit.domain.admin.dto.PassStatusUpdateRequest;
 import org.springframework.http.ResponseEntity;
-import org.springframework.security.access.prepost.PreAuthorize;
+import com.pirogramming.recruit.global.security.RequireRoot;
+import com.pirogramming.recruit.global.security.RequireAdmin;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PutMapping;
@@ -32,13 +33,13 @@ import lombok.extern.slf4j.Slf4j;
 @RequiredArgsConstructor
 @Slf4j
 @Tag(name = "Application Management", description = "지원서 관리 API (합격 처리)")
-@PreAuthorize("hasRole('ROOT') or hasRole('GENERAL')")
 public class ApplicationManagementController {
 
     private final WebhookApplicationService webhookApplicationService;
 
     // 개별 합격 상태 변경
     @PutMapping("/{id}/pass-status")
+    @RequireRoot
     @Operation(summary = "합격 상태 변경", description = "지원자의 합격 상태를 변경합니다.")
     public ResponseEntity<ApiRes<WebhookApplicationResponse>> updatePassStatus(
             @Parameter(description = "지원서 ID") @PathVariable Long id,
@@ -56,6 +57,7 @@ public class ApplicationManagementController {
 
     // 일괄 합격 상태 변경
     @PutMapping("/all/pass-status")
+    @RequireRoot
     @Operation(summary = "일괄 합격 처리", description = "여러 지원자의 합격 상태를 일괄 변경합니다.")
     public ResponseEntity<ApiRes<List<WebhookApplicationResponse>>> updatePassStatusAll(
             @Valid @RequestBody AllPassStatusUpdateRequest request) {
@@ -78,6 +80,7 @@ public class ApplicationManagementController {
 
     // 합격 상태별 지원서 조회
     @GetMapping("/pass-status/{status}")
+    @RequireAdmin
     @Operation(summary = "합격 상태별 조회", description = "특정 합격 상태의 지원자들을 조회합니다.")
     public ResponseEntity<ApiRes<List<WebhookApplicationResponse>>> getApplicationsByPassStatus(
             @Parameter(description = "합격 상태") @PathVariable WebhookApplication.PassStatus status) {
@@ -95,6 +98,7 @@ public class ApplicationManagementController {
 
     // 합격 상태 통계 조회
     @GetMapping("/pass-status/statistics")
+    @RequireAdmin
     @Operation(summary = "합격 상태 통계", description = "전체 지원자의 합격 상태 통계를 조회합니다.")
     public ResponseEntity<ApiRes<Map<WebhookApplication.PassStatus, Long>>> getPassStatusStatistics() {
 
@@ -107,6 +111,7 @@ public class ApplicationManagementController {
 
     // 구글 폼별 합격 상태 통계 조회
     @GetMapping("/google-form/{googleFormId}/pass-status/statistics")
+    @RequireAdmin
     @Operation(summary = "구글 폼별 합격 상태 통계", description = "특정 구글 폼의 합격 상태 통계를 조회합니다.")
     public ResponseEntity<ApiRes<Map<WebhookApplication.PassStatus, Long>>> getPassStatusStatisticsByGoogleForm(
             @Parameter(description = "구글 폼 ID") @PathVariable Long googleFormId) {
@@ -122,6 +127,7 @@ public class ApplicationManagementController {
 
     // 구글 폼별 + 합격 상태별 지원서 조회
     @GetMapping("/google-form/{googleFormId}/pass-status/{status}")
+    @RequireAdmin
     @Operation(summary = "구글 폼별 합격 상태별 조회", description = "특정 구글 폼의 특정 합격 상태 지원자들을 조회합니다.")
     public ResponseEntity<ApiRes<List<WebhookApplicationResponse>>> getApplicationsByGoogleFormAndPassStatus(
             @Parameter(description = "구글 폼 ID") @PathVariable Long googleFormId,
