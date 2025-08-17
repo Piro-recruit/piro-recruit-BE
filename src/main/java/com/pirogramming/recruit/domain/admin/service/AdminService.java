@@ -89,6 +89,14 @@ public class AdminService {
     }
 
     @Transactional
+    public void logout(String refreshToken) {
+        RefreshToken saved = refreshTokenRepository.findByToken(refreshToken)
+            .orElseThrow(() -> new RecruitException(HttpStatus.UNAUTHORIZED, ErrorCode.INVALID_REFRESH_TOKEN));
+
+        refreshTokenRepository.delete(saved);
+    }
+
+    @Transactional
     public GeneralAdminResponse createGeneralAdmin(CreateGeneralAdminRequest request) {
         // 고유한 로그인 코드 생성 (UUID 기반)
         String loginCode = UUID.randomUUID().toString().substring(0, 8).toUpperCase();
