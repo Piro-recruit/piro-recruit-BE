@@ -187,7 +187,27 @@ pipeline {
                                     -e JWT_SECRET=${JWT_SECRET} \\
                                     -e ROOT_ADMIN_LOGIN_CODE=${ROOT_ADMIN_LOGIN_CODE} \\
                                     -e WEBHOOK_API_KEY=${WEBHOOK_API_KEY} \\
-                                    -e SPRING_JPA_HIBERNATE_DDL_AUTO=update \\
+                                    -e SPRING_JPA_HIBERNATE_DDL_AUTO=update \\ubuntu@piro-recruiting-app-server:~$ sudo certbot --nginx -d api.piro-recruiting.kro.kr
+                                                                              Saving debug log to /var/log/letsencrypt/letsencrypt.log
+                                                                              Requesting a certificate for api.piro-recruiting.kro.kr
+
+                                                                              Successfully received certificate.
+                                                                              Certificate is saved at: /etc/letsencrypt/live/api.piro-recruiting.kro.kr/fullchain.pem
+                                                                              Key is saved at:         /etc/letsencrypt/live/api.piro-recruiting.kro.kr/privkey.pem
+                                                                              This certificate expires on 2025-11-15.
+                                                                              These files will be updated when the certificate renews.
+                                                                              Certbot has set up a scheduled task to automatically renew this certificate in the background.
+
+                                                                              Deploying certificate
+                                                                              Could not install certificate
+
+                                                                              NEXT STEPS:
+                                                                              - The certificate was saved, but could not be installed (installer: nginx). After fixing the error shown below, try installing it again by running:
+                                                                                certbot install --cert-name api.piro-recruiting.kro.kr
+
+                                                                              Could not automatically find a matching server block for api.piro-recruiting.kro.kr. Set the `server_name` directive to use the Nginx installer.
+                                                                              Ask for help or search for solutions at https://community.letsencrypt.org. See the logfile /var/log/letsencrypt/letsencrypt.log or re-run Certbot with -v for more details.
+
                                     -e JAVA_OPTS="-Xmx256m -XX:+UseG1GC" \\
                                     ${DOCKER_IMAGE}:${DOCKER_TAG}
 
@@ -277,9 +297,35 @@ upstream app_backend {
     server localhost:${deployPort};
 }
 
+# HTTP to HTTPS redirect
 server {
     listen 80;
-    server_name _;
+    server_name api.piro-recruiting.kro.kr _;
+    return 301 https://\\\$server_name\\\$request_uri;
+}
+
+# HTTPS server
+server {
+    listen 443 ssl http2;
+    server_name api.piro-recruiting.kro.kr _;
+
+    # SSL Configuration (Let's Encrypt certificates)
+    ssl_certificate /etc/letsencrypt/live/api.piro-recruiting.kro.kr/fullchain.pem;
+    ssl_certificate_key /etc/letsencrypt/live/api.piro-recruiting.kro.kr/privkey.pem;
+    
+    # SSL Security settings
+    ssl_protocols TLSv1.2 TLSv1.3;
+    ssl_prefer_server_ciphers on;
+    ssl_ciphers ECDHE-RSA-AES256-GCM-SHA512:DHE-RSA-AES256-GCM-SHA512:ECDHE-RSA-AES256-GCM-SHA384:DHE-RSA-AES256-GCM-SHA384;
+    ssl_session_timeout 10m;
+    ssl_session_cache shared:SSL:10m;
+    ssl_session_tickets off;
+
+    # Security headers
+    add_header Strict-Transport-Security "max-age=63072000; includeSubDomains; preload";
+    add_header X-Frame-Options DENY;
+    add_header X-Content-Type-Options nosniff;
+    add_header X-XSS-Protection "1; mode=block";
 
     location /health {
         return 200 "healthy\\n";
