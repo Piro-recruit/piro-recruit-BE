@@ -2,7 +2,7 @@ package com.pirogramming.recruit.domain.integration.controller;
 
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.ResponseEntity;
-import org.springframework.security.access.prepost.PreAuthorize;
+import com.pirogramming.recruit.global.security.RequireRoot;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
@@ -22,7 +22,7 @@ import lombok.extern.slf4j.Slf4j;
 @RequiredArgsConstructor
 @Slf4j
 @Tag(name = "Integration", description = "외부 시스템 연동 API (Apps Script, CSV 내보내기)")
-@PreAuthorize("hasRole('ROOT') or hasRole('GENERAL')")
+@RequireRoot
 public class IntegrationController {
 
     private final AppsScriptIntegrationService appsScriptIntegrationService;

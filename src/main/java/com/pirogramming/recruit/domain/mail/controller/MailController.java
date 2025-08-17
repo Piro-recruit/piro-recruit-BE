@@ -15,6 +15,7 @@ import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import com.pirogramming.recruit.global.security.RequireRoot;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 
@@ -22,6 +23,7 @@ import lombok.RequiredArgsConstructor;
 @RequestMapping("/mail")
 @RequiredArgsConstructor
 @Tag(name = "Mail", description = "메일 발송 API")
+@RequireRoot
 public class MailController {
 
 	private final MailService mailService;

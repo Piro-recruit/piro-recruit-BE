@@ -28,6 +28,7 @@ import com.pirogramming.recruit.global.exception.code.ErrorCode;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import com.pirogramming.recruit.global.security.RequireRoot;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -37,6 +38,7 @@ import lombok.extern.slf4j.Slf4j;
 @RequiredArgsConstructor
 @Slf4j
 @Tag(name = "GoogleForm", description = "구글 폼 관리 API")
+@RequireRoot
 public class GoogleFormController {
 
     private final GoogleFormService googleFormService;

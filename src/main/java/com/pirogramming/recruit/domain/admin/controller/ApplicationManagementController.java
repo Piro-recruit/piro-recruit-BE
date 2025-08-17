@@ -7,7 +7,7 @@ import java.util.stream.Collectors;
 import com.pirogramming.recruit.domain.admin.dto.AllPassStatusUpdateRequest;
 import com.pirogramming.recruit.domain.admin.dto.PassStatusUpdateRequest;
 import org.springframework.http.ResponseEntity;
-import org.springframework.security.access.prepost.PreAuthorize;
+import com.pirogramming.recruit.global.security.RequireRoot;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PutMapping;
@@ -32,7 +32,7 @@ import lombok.extern.slf4j.Slf4j;
 @RequiredArgsConstructor
 @Slf4j
 @Tag(name = "Application Management", description = "지원서 관리 API (합격 처리)")
-@PreAuthorize("hasRole('ROOT') or hasRole('GENERAL')")
+@RequireRoot
 public class ApplicationManagementController {
 
     private final WebhookApplicationService webhookApplicationService;

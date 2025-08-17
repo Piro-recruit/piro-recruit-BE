@@ -73,7 +73,7 @@ com.pirogramming.recruit
 - **Database**: PostgreSQL with Spring Data JPA
 - **Authentication**: JWT with custom security configuration
 - **Documentation**: Swagger/OpenAPI 3
-- **Build Tool**: Gradle 8.5
+- **Build Tool**: Gradle 8.14.2
 - **Java Version**: 21
 - **Container**: Docker with multi-stage build
 
@@ -152,3 +152,8 @@ fix auth: resolve authentication error on login
 - Swagger UI available at `/swagger-ui.html`
 - Uses CommonMark for Markdown processing
 - Docker environment requires `.env` file with database credentials and API keys
+
+## Development Guidelines
+- ALWAYS prefer editing existing files over creating new ones
+- NEVER create files unless absolutely necessary for the task
+- NEVER proactively create documentation files (*.md) or README files unless explicitly requested
