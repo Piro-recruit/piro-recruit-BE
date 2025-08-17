@@ -23,6 +23,7 @@ import com.pirogramming.recruit.global.exception.code.ErrorCode;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import com.pirogramming.recruit.global.security.RequireAdmin;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -53,6 +54,7 @@ public class WebhookApplicationController {
 
     // 전체 지원서 목록 조회
     @GetMapping
+    @RequireAdmin
     @Operation(summary = "전체 지원서 조회", description = "저장된 모든 지원서를 최신순으로 조회합니다.")
     public ResponseEntity<ApiRes<List<WebhookApplicationResponse>>> getAllApplications() {
 
@@ -65,6 +67,7 @@ public class WebhookApplicationController {
 
     // 구글 폼별 지원서 목록 조회 (구글 폼 ID)
     @GetMapping("/google-form/{googleFormId}")
+    @RequireAdmin
     @Operation(summary = "구글 폼별 지원서 조회", description = "특정 구글 폼의 모든 지원서를 조회합니다.")
     public ResponseEntity<ApiRes<List<WebhookApplicationResponse>>> getApplicationsByGoogleForm(
             @Parameter(description = "구글 폼 ID") @PathVariable Long googleFormId) {
@@ -78,6 +81,7 @@ public class WebhookApplicationController {
 
     // 폼 ID별 지원서 목록 조회
     @GetMapping("/form-id/{formId}")
+    @RequireAdmin
     @Operation(summary = "폼 ID별 지원서 조회", description = "특정 폼 ID의 모든 지원서를 조회합니다.")
     public ResponseEntity<ApiRes<List<WebhookApplicationResponse>>> getApplicationsByFormId(
         @Parameter(description = "구글 폼 식별자") @PathVariable String formId) {
@@ -91,6 +95,7 @@ public class WebhookApplicationController {
 
     // 특정 지원서 조회 (ID 기준)
     @GetMapping("/{id}")
+    @RequireAdmin
     @Operation(summary = "특정 지원서 조회", description = "ID를 기준으로 특정 지원서를 조회합니다.")
     public ResponseEntity<ApiRes<WebhookApplicationResponse>> getApplicationById(
             @Parameter(description = "지원서 ID") @PathVariable Long id) {
@@ -103,6 +108,7 @@ public class WebhookApplicationController {
 
     // 이메일로 지원서 조회
     @GetMapping("/by-email")
+    @RequireAdmin
     @Operation(summary = "이메일로 지원서 조회", description = "이메일을 기준으로 지원서를 조회합니다.")
     public ResponseEntity<ApiRes<WebhookApplicationResponse>> getApplicationByEmail(
             @Parameter(description = "지원자 이메일") @RequestParam String email) {
@@ -115,6 +121,7 @@ public class WebhookApplicationController {
 
     // 구글 폼별 + 이메일로 지원서 조회
     @GetMapping("/google-form/{googleFormId}/by-email")
+    @RequireAdmin
     @Operation(summary = "구글 폼별 이메일로 지원서 조회", description = "특정 구글 폼에서 이메일을 기준으로 지원서를 조회합니다.")
     public ResponseEntity<ApiRes<WebhookApplicationResponse>> getApplicationByGoogleFormAndEmail(
             @Parameter(description = "구글 폼 ID") @PathVariable Long googleFormId,
@@ -128,6 +135,7 @@ public class WebhookApplicationController {
 
     // 폼 ID별 + 이메일로 지원서 조회
     @GetMapping("/form-id/{formId}/by-email")
+    @RequireAdmin
     @Operation(summary = "폼 ID별 이메일로 지원서 조회", description = "특정 폼 ID에서 이메일을 기준으로 지원서를 조회합니다.")
     public ResponseEntity<ApiRes<WebhookApplicationResponse>> getApplicationByFormIdAndEmail(
             @Parameter(description = "구글 폼 ID") @PathVariable String formId,
@@ -141,6 +149,7 @@ public class WebhookApplicationController {
 
     // 처리 상태별 지원서 조회
     @GetMapping("/by-status")
+    @RequireAdmin
     @Operation(summary = "상태별 지원서 조회", description = "처리 상태를 기준으로 지원서를 조회합니다.")
     public ResponseEntity<ApiRes<List<WebhookApplicationResponse>>> getApplicationsByStatus(
             @Parameter(description = "처리 상태 (PENDING, COMPLETED, FAILED)")
@@ -155,6 +164,7 @@ public class WebhookApplicationController {
 
     // 구글 폼별 + 상태별 지원서 조회
     @GetMapping("/google-form/{googleFormId}/by-status")
+    @RequireAdmin
     @Operation(summary = "구글 폼별 상태별 지원서 조회", description = "특정 구글 폼에서 처리 상태를 기준으로 지원서를 조회합니다.")
     public ResponseEntity<ApiRes<List<WebhookApplicationResponse>>> getApplicationsByGoogleFormAndStatus(
             @Parameter(description = "구글 폼 ID") @PathVariable Long googleFormId,
@@ -172,6 +182,7 @@ public class WebhookApplicationController {
 
     // 지원서 제출 여부 확인
     @GetMapping("/check")
+    @RequireAdmin
     @Operation(summary = "지원서 제출 여부 확인", description = "이메일을 기준으로 지원서 제출 여부를 확인합니다.")
     public ResponseEntity<ApiRes<Map<String, Object>>> checkApplicationStatus(
             @Parameter(description = "확인할 이메일") @RequestParam String email) {
@@ -189,6 +200,7 @@ public class WebhookApplicationController {
 
     // 구글 폼별 지원서 제출 여부 확인
     @GetMapping("/google-form/{googleFormId}/check")
+    @RequireAdmin
     @Operation(summary = "구글 폼별 지원서 제출 여부 확인", description = "특정 구글 폼에서 이메일을 기준으로 지원서 제출 여부를 확인합니다.")
     public ResponseEntity<ApiRes<Map<String, Object>>> checkApplicationStatusForGoogleForm(
             @Parameter(description = "구글 폼 ID") @PathVariable Long googleFormId,
@@ -208,6 +220,7 @@ public class WebhookApplicationController {
 
     // 폼 ID별 지원서 제출 여부 확인
     @GetMapping("/form-id/{formId}/check")
+    @RequireAdmin
     @Operation(summary = "폼 ID별 지원서 제출 여부 확인", description = "특정 폼 ID에서 이메일을 기준으로 지원서 제출 여부를 확인합니다.")
     public ResponseEntity<ApiRes<Map<String, Object>>> checkApplicationStatusForFormId(
             @Parameter(description = "구글 폼 ID") @PathVariable String formId,
@@ -227,6 +240,7 @@ public class WebhookApplicationController {
 
     // 대기 중인 지원서 개수 조회
     @GetMapping("/pending-count")
+    @RequireAdmin
     @Operation(summary = "대기 중인 지원서 개수", description = "처리 대기 중인 지원서의 개수를 조회합니다.")
     public ResponseEntity<ApiRes<Map<String, Object>>> getPendingApplicationCount() {
 
@@ -242,6 +256,7 @@ public class WebhookApplicationController {
 
     // 구글 폼별 지원서 개수 조회
     @GetMapping("/google-form/{googleFormId}/count")
+    @RequireAdmin
     @Operation(summary = "구글 폼별 지원서 개수", description = "특정 구글 폼의 총 지원서 개수를 조회합니다.")
     public ResponseEntity<ApiRes<Map<String, Object>>> getApplicationCountByGoogleForm(
             @Parameter(description = "구글 폼 ID") @PathVariable Long googleFormId) {
@@ -259,6 +274,7 @@ public class WebhookApplicationController {
 
     // 폼 ID별 지원서 개수 조회
     @GetMapping("/form-id/{formId}/count")
+    @RequireAdmin
     @Operation(summary = "폼 ID별 지원서 개수", description = "특정 폼 ID의 총 지원서 개수를 조회합니다.")
     public ResponseEntity<ApiRes<Map<String, Object>>> getApplicationCountByFormId(
             @Parameter(description = "구글 폼 ID") @PathVariable String formId) {
@@ -276,6 +292,7 @@ public class WebhookApplicationController {
 
     // 상태별 통계 조회
     @GetMapping("/statistics")
+    @RequireAdmin
     @Operation(summary = "상태별 통계 조회", description = "전체 지원서의 상태별 통계를 조회합니다.")
     public ResponseEntity<ApiRes<Map<WebhookApplication.ProcessingStatus, Long>>> getStatusStatistics() {
 
@@ -286,6 +303,7 @@ public class WebhookApplicationController {
 
     // 구글 폼별 상태별 통계 조회
     @GetMapping("/google-form/{googleFormId}/statistics")
+    @RequireAdmin
     @Operation(summary = "구글 폼별 상태별 통계 조회", description = "특정 구글 폼의 상태별 통계를 조회합니다.")
     public ResponseEntity<ApiRes<Map<WebhookApplication.ProcessingStatus, Long>>> getStatusStatisticsByGoogleForm(
             @Parameter(description = "구글 폼 ID") @PathVariable Long googleFormId) {

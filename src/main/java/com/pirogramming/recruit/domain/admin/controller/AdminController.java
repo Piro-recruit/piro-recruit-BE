@@ -40,6 +40,12 @@ public class AdminController {
         return ResponseEntity.ok(adminService.reissue(request.getRefreshToken()));
     }
 
+    @PostMapping("/logout")
+    public ResponseEntity<Void> logout(@RequestBody RefreshTokenRequest request) {
+        adminService.logout(request.getRefreshToken());
+        return ResponseEntity.ok().build();
+    }
+
     // API Key → JWT 교환 (외부 서비스용)
     @PostMapping("/token/exchange")
     public ResponseEntity<TokenExchangeResponse> exchangeApiKeyForToken(@RequestBody ApiKeyExchangeRequest request) {

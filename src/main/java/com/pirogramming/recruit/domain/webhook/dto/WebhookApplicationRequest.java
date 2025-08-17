@@ -34,6 +34,13 @@ public class WebhookApplicationRequest {
     @NotNull(message = "제출 시간은 필수입니다")
     private LocalDateTime submissionTimestamp;
 
+    // 추가된 개별 필드들
+    private String school; // 학교
+    private String department; // 학과
+    private String grade; // 학년
+    private String major; // 전공
+    private String phoneNumber; // 전화번호
+
     // 유연한 폼 데이터 (JSON)
     @NotNull(message = "폼 데이터는 필수입니다")
     private Map<String, Object> formData;
@@ -48,6 +55,11 @@ public class WebhookApplicationRequest {
                 .formResponseId(this.formResponseId)
                 .submissionTimestamp(this.submissionTimestamp)
                 .formData(this.formData)
+                .school(this.school)
+                .department(this.department)
+                .grade(this.grade)
+                .major(this.major)
+                .phoneNumber(this.phoneNumber)
                 .build();
     }
 
