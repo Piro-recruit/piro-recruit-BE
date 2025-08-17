@@ -8,9 +8,9 @@ function saveConfiguration() {
 
   properties.setProperties({
     'FORM_ID': '1AepQVswMu83SX-NdnTHH-vng9dp3wND1AB5ENlENzAM',
-    'WEBHOOK_URL': 'http://34.64.41.136/api/webhook/applications/receive',
-    'TEST_URL': 'http://34.64.41.136/api/webhook/applications/test',
-    'JWT_EXCHANGE_URL': 'http://34.64.41.136/api/admin/token/exchange',
+    'WEBHOOK_URL': 'https://api.piro-recruit.kro.kr/api/webhook/applications/receive',
+    'TEST_URL': 'https://api.piro-recruit.kro.kr/api/webhook/applications/test',
+    'JWT_EXCHANGE_URL': 'https://api.piro-recruit.kro.kr/api/admin/token/exchange',
     'SPREADSHEET_ID': '19CjgpaA2p8QVyZ_ukAYVooqLYO2kpZ_FQ8uGjjNP3gg',
     'API_KEY': 'piro-recruit-webhook-2025'
   });
@@ -54,7 +54,7 @@ function getJwtToken(forceRefresh = false) {
     if (!forceRefresh && storedToken && tokenExpiry) {
       var expiryTime = parseInt(tokenExpiry);
       var bufferTime = 5 * 60 * 1000; // 5분 버퍼
-      
+
       if (now < (expiryTime - bufferTime)) {
         console.log('기존 JWT 토큰 재사용');
         return storedToken;
@@ -94,21 +94,21 @@ function getJwtToken(forceRefresh = false) {
 
     var result = JSON.parse(responseText);
     var tokenData = result.accessToken ? result : result.data;
-    
+
     if (!tokenData || !tokenData.accessToken) {
       throw new Error('유효하지 않은 JWT 응답 형식');
     }
 
     // 토큰과 만료 시간 저장
     var expiryTime = now + (tokenData.expiresIn * 1000);
-    
+
     properties.setProperties({
       'JWT_TOKEN': tokenData.accessToken,
       'JWT_TOKEN_EXPIRY': expiryTime.toString()
     });
 
     console.log('JWT 토큰 발급 성공 (만료: ' + new Date(expiryTime).toString() + ')');
-    
+
     return tokenData.accessToken;
 
   } catch (error) {
@@ -129,21 +129,21 @@ function viewJwtTokenInfo() {
   var properties = PropertiesService.getScriptProperties();
   var token = properties.getProperty('JWT_TOKEN');
   var expiry = properties.getProperty('JWT_TOKEN_EXPIRY');
-  
+
   console.log('🔑 JWT 토큰 정보:');
-  
+
   if (token) {
     console.log('- 토큰: ' + token.substring(0, 20) + '...');
-    
+
     if (expiry) {
       var expiryDate = new Date(parseInt(expiry));
       var now = new Date();
       var isExpired = now.getTime() >= parseInt(expiry);
-      
+
       console.log('- 만료 시간: ' + expiryDate.toString());
       console.log('- 현재 시간: ' + now.toString());
       console.log('- 상태: ' + (isExpired ? '만료됨' : '유효함'));
-      
+
       if (!isExpired) {
         var remainingMinutes = Math.floor((parseInt(expiry) - now.getTime()) / (1000 * 60));
         console.log('- 남은 시간: ' + remainingMinutes + '분');
@@ -174,12 +174,12 @@ function updateWebhookUrl(newUrl) {
     console.error('URL을 입력해주세요.');
     return;
   }
-  
+
   PropertiesService.getScriptProperties().setProperties({
     'WEBHOOK_URL': newUrl,
     'TEST_URL': newUrl.replace('/receive', '/test')
   });
-  
+
   console.log('웹훅 URL이 업데이트되었습니다.');
   console.log('- WEBHOOK_URL: ' + newUrl);
   console.log('- TEST_URL: ' + newUrl.replace('/receive', '/test'));
@@ -191,12 +191,12 @@ function updateJwtExchangeUrl(newUrl) {
     console.error('URL을 입력해주세요.');
     return;
   }
-  
+
   PropertiesService.getScriptProperties().setProperty('JWT_EXCHANGE_URL', newUrl);
-  
+
   // 기존 JWT 토큰 삭제하여 새로 발급받도록 함
   clearJwtToken();
-  
+
   console.log('JWT Exchange URL이 업데이트되었습니다.');
   console.log('JWT 토큰이 초기화되었습니다.');
 }
@@ -207,12 +207,12 @@ function updateApiKey(newApiKey) {
     console.error('API Key를 입력해주세요.');
     return;
   }
-  
+
   PropertiesService.getScriptProperties().setProperty('API_KEY', newApiKey);
-  
+
   // 기존 JWT 토큰 삭제하여 새로 발급받도록 함
   clearJwtToken();
-  
+
   console.log('API Key가 업데이트되었습니다. JWT 토큰이 초기화되었습니다.');
 }
 
@@ -274,15 +274,28 @@ function onFormSubmit(e) {
     var applicantName = formData['이름'] || formData['성명'] || '';
     var applicantEmail = email || formData['이메일 주소'] || formData['이메일'] || '';
 
-    console.log('👤 지원자:', applicantName, '(' + applicantEmail + ')');
+    // 추가 필드 추출 (백엔드 DTO와 매칭)
+    var school = formData['대학교'] || formData['학교'] || '';
+    var department = formData['학과'] || formData['전공학과'] || '';
+    var grade = formData['학년'] || '';
+    var major = formData['전공 여부'] || formData['전공'] || '';
+    var phoneNumber = formData['전화번호'] || formData['휴대폰 번호'] || '';
 
-    // 서버 전송용 데이터 구성
+    console.log('👤 지원자:', applicantName, '(' + applicantEmail + ')');
+    console.log('🏫 학교정보:', school, department, grade, major);
+
+    // 서버 전송용 데이터 구성 (백엔드 DTO 구조에 맞춤)
     var webhookPayload = {
       formId: CONFIG.FORM_ID,
       applicantName: applicantName,
       applicantEmail: applicantEmail,
       formResponseId: 'response_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9),
       submissionTimestamp: timestamp.toISOString(),
+      school: school,
+      department: department,
+      grade: grade,
+      major: major,
+      phoneNumber: phoneNumber,
       formData: formData
     };
 
@@ -342,17 +355,17 @@ function sendToWebhook(payload, url, retryCount = 0) {
         responseCode: responseCode,
         responseText: responseText
       };
-    } 
+    }
     // JWT 토큰이 만료되었거나 인증 오류인 경우 재시도
     else if (responseCode === 401 && retryCount < maxRetries) {
       console.log('🔄 JWT 토큰 만료 또는 인증 오류. 토큰 갱신 후 재시도... (' + (retryCount + 1) + '/' + maxRetries + ')');
-      
+
       // 토큰 강제 갱신
       getJwtToken(true);
-      
+
       // 재귀 호출로 재시도
       return sendToWebhook(payload, url, retryCount + 1);
-    } 
+    }
     else {
       console.error('❌ 전송 실패 (' + responseCode + '):', responseText);
       return {
@@ -379,14 +392,14 @@ function sendToWebhook(payload, url, retryCount = 0) {
 // JWT 토큰 발급 테스트
 function testJwtTokenGeneration() {
   console.log('🧪 JWT 토큰 발급 테스트 시작...');
-  
+
   try {
     var token = getJwtToken(true); // 강제 갱신
     console.log('✅ JWT 토큰 발급 테스트 성공!');
     console.log('토큰: ' + token.substring(0, 30) + '...');
-    
+
     viewJwtTokenInfo();
-    
+
     return { success: true, token: token };
   } catch (error) {
     console.error('❌ JWT 토큰 발급 테스트 실패:', error);
@@ -443,6 +456,11 @@ function testRealApplicationSubmit() {
     applicantEmail: 'test.jwt.applicant@example.com',
     formResponseId: 'test_jwt_' + Date.now(),
     submissionTimestamp: new Date().toISOString(),
+    school: '테스트 대학교',
+    department: '컴퓨터공학과',
+    grade: '3학년',
+    major: '주전공',
+    phoneNumber: '010-1234-5678',
     formData: {
       '이름': '테스트 지원자',
       '이메일 주소': 'test.jwt.applicant@example.com',
@@ -472,13 +490,13 @@ function testRealApplicationSubmit() {
 // 전체 플로우 테스트
 function testFullFlow() {
   console.log('🧪 === 전체 플로우 테스트 시작 ===');
-  
+
   var results = [];
-  
+
   // 1. 설정 확인
   console.log('1️⃣ 설정 확인...');
   viewCurrentConfig();
-  
+
   // 2. JWT 토큰 발급
   console.log('2️⃣ JWT 토큰 발급 테스트...');
   var jwtResult = testJwtTokenGeneration();
@@ -487,7 +505,7 @@ function testFullFlow() {
     console.error('❌ JWT 토큰 발급 실패. 테스트 중단.');
     return { success: false, results: results };
   }
-  
+
   // 3. 웹훅 연결 테스트
   console.log('3️⃣ 웹훅 연결 테스트...');
   var connectionResult = testWebhookConnection();
@@ -496,23 +514,18 @@ function testFullFlow() {
     console.error('❌ 웹훅 연결 실패. 테스트 중단.');
     return { success: false, results: results };
   }
-  
-  // 4. 실제 지원서 전송 테스트
-  console.log('4️⃣ 실제 지원서 전송 테스트...');
-  var submitResult = testRealApplicationSubmit();
-  results.push({ step: '지원서 전송', success: submitResult.success });
-  
+
   var allSuccess = results.every(function(result) { return result.success; });
-  
+
   if (allSuccess) {
-    console.log('🎉 === 전체 플로우 테스트 성공! ===');
+    console.log('🎉 === 기본 연결 테스트 성공! ===');
   } else {
     console.log('⚠️ === 일부 테스트 실패 ===');
     results.forEach(function(result) {
       console.log('- ' + result.step + ': ' + (result.success ? '✅' : '❌'));
     });
   }
-  
+
   return { success: allSuccess, results: results };
 }
 
@@ -652,7 +665,7 @@ function help() {
   console.log('');
   console.log('🚀 사용법:');
   console.log('  1. saveConfiguration() 실행');
-  console.log('  2. testFullFlow() 로 전체 테스트');
+  console.log('  2. testFullFlow() 로 연결 테스트');
   console.log('  3. 구글 폼에 트리거 설정 (onFormSubmit)');
 }
 
@@ -666,7 +679,7 @@ function quickStart() {
   console.log('2️⃣ 설정 확인:');
   console.log('   viewCurrentConfig()');
   console.log('');
-  console.log('3️⃣ 전체 테스트:');
+  console.log('3️⃣ 연결 테스트:');
   console.log('   testFullFlow()');
   console.log('');
   console.log('4️⃣ 트리거 설정:');

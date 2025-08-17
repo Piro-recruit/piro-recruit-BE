@@ -94,7 +94,7 @@ public class WebhookApplicationController {
     }
 
     // 특정 지원서 조회 (ID 기준)
-    @GetMapping("/{id}")
+    @GetMapping("/id/{id}")
     @RequireAdmin
     @Operation(summary = "특정 지원서 조회", description = "ID를 기준으로 특정 지원서를 조회합니다.")
     public ResponseEntity<ApiRes<WebhookApplicationResponse>> getApplicationById(
