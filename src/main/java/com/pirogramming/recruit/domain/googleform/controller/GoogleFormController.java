@@ -29,6 +29,7 @@ import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import com.pirogramming.recruit.global.security.RequireRoot;
+import com.pirogramming.recruit.global.security.RequireAdmin;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -38,7 +39,6 @@ import lombok.extern.slf4j.Slf4j;
 @RequiredArgsConstructor
 @Slf4j
 @Tag(name = "GoogleForm", description = "구글 폼 관리 API")
-@RequireRoot
 public class GoogleFormController {
 
     private final GoogleFormService googleFormService;
@@ -58,6 +58,7 @@ public class GoogleFormController {
 
     // 새 구글 폼 생성
     @PostMapping
+    @RequireRoot
     @Operation(summary = "새 구글 폼 생성", description = "새로운 구글 폼을 등록합니다.")
     public ResponseEntity<ApiRes<GoogleFormResponse>> createGoogleForm(
             @Valid @RequestBody GoogleFormRequest request) {
@@ -73,6 +74,7 @@ public class GoogleFormController {
 
     // 전체 구글 폼 목록 조회
     @GetMapping
+    @RequireAdmin
     @Operation(summary = "전체 구글 폼 조회", description = "모든 구글 폼을 최신순으로 조회합니다.")
     public ResponseEntity<ApiRes<List<GoogleFormResponse>>> getAllGoogleForms(
             @Parameter(description = "지원서 개수 포함 여부") @RequestParam(defaultValue = "true") boolean includeApplicationCount) {
@@ -103,6 +105,7 @@ public class GoogleFormController {
 
     // 특정 구글 폼 조회 (ID 기준)
     @GetMapping("/{id}")
+    @RequireAdmin
     @Operation(summary = "특정 구글 폼 조회", description = "ID를 기준으로 특정 구글 폼을 조회합니다.")
     public ResponseEntity<ApiRes<GoogleFormResponse>> getGoogleFormById(
             @Parameter(description = "구글 폼 ID") @PathVariable Long id,
@@ -121,6 +124,7 @@ public class GoogleFormController {
 
     // 폼 ID로 구글 폼 조회
     @GetMapping("/form-id/{formId}")
+    @RequireAdmin
     @Operation(summary = "폼 ID로 구글 폼 조회", description = "구글 폼 ID를 기준으로 구글 폼을 조회합니다.")
     public ResponseEntity<ApiRes<GoogleFormResponse>> getGoogleFormByFormId(
             @Parameter(description = "구글 폼 ID") @PathVariable String formId,
@@ -139,6 +143,7 @@ public class GoogleFormController {
 
     // 현재 활성화된 구글 폼 조회
     @GetMapping("/active")
+    @RequireAdmin
     @Operation(summary = "현재 활성화된 구글 폼 조회", description = "현재 활성화된 구글 폼을 조회합니다.")
     public ResponseEntity<ApiRes<GoogleFormResponse>> getActiveGoogleForm() {
 
@@ -154,6 +159,7 @@ public class GoogleFormController {
 
     // 구글 폼 활성화
     @PutMapping("/{id}/activate")
+    @RequireRoot
     @Operation(summary = "구글 폼 활성화", description = "특정 구글 폼을 활성화합니다. (기존 활성화된 것은 비활성화)")
     public ResponseEntity<ApiRes<GoogleFormResponse>> activateGoogleForm(
             @Parameter(description = "구글 폼 ID") @PathVariable Long id) {
@@ -170,6 +176,7 @@ public class GoogleFormController {
 
     // 구글 폼 비활성화
     @PutMapping("/{id}/deactivate")
+    @RequireRoot
     @Operation(summary = "구글 폼 비활성화", description = "특정 구글 폼을 비활성화합니다.")
     public ResponseEntity<ApiRes<GoogleFormResponse>> deactivateGoogleForm(
             @Parameter(description = "구글 폼 ID") @PathVariable Long id) {
@@ -186,6 +193,7 @@ public class GoogleFormController {
 
     // 구글 폼 URL 업데이트
     @PutMapping("/{id}/form-url")
+    @RequireRoot
     @Operation(summary = "구글 폼 URL 업데이트", description = "구글 폼의 URL을 업데이트합니다.")
     public ResponseEntity<ApiRes<GoogleFormResponse>> updateGoogleFormUrl(
             @Parameter(description = "구글 폼 ID") @PathVariable Long id,
@@ -209,6 +217,7 @@ public class GoogleFormController {
 
     // 구글 시트 URL 업데이트
     @PutMapping("/{id}/sheet-url")
+    @RequireRoot
     @Operation(summary = "구글 시트 URL 업데이트", description = "구글 시트의 URL을 업데이트합니다.")
     public ResponseEntity<ApiRes<GoogleFormResponse>> updateGoogleSheetUrl(
             @Parameter(description = "구글 폼 ID") @PathVariable Long id,
@@ -232,6 +241,7 @@ public class GoogleFormController {
 
     // 구글 폼 통계 정보 조회
     @GetMapping("/{id}/statistics")
+    @RequireAdmin
     @Operation(summary = "구글 폼 통계 정보", description = "특정 구글 폼의 상세 통계 정보를 조회합니다.")
     public ResponseEntity<ApiRes<Map<String, Object>>> getGoogleFormStatistics(
             @Parameter(description = "구글 폼 ID") @PathVariable Long id) {
@@ -261,6 +271,7 @@ public class GoogleFormController {
 
     // 제목으로 구글 폼 검색
     @GetMapping("/search")
+    @RequireAdmin
     @Operation(summary = "제목으로 구글 폼 검색", description = "제목을 기준으로 구글 폼을 검색합니다.")
     public ResponseEntity<ApiRes<List<GoogleFormResponse>>> searchGoogleFormsByTitle(
             @Parameter(description = "검색할 제목") @RequestParam String title) {
@@ -277,6 +288,7 @@ public class GoogleFormController {
 
     // 구글 폼 삭제
     @DeleteMapping("/{id}")
+    @RequireRoot
     @Operation(summary = "구글 폼 삭제", description = "특정 구글 폼을 삭제합니다. 활성화된 폼은 삭제할 수 없습니다.")
     public ResponseEntity<ApiRes<Void>> deleteGoogleForm(
             @Parameter(description = "구글 폼 ID") @PathVariable Long id) {
@@ -292,6 +304,7 @@ public class GoogleFormController {
 
     // 특정 기수의 구글 폼들 조회
     @GetMapping("/generation/{generation}")
+    @RequireAdmin
     @Operation(summary = "특정 기수의 구글 폼들 조회", description = "특정 기수의 모든 구글 폼을 조회합니다.")
     public ResponseEntity<ApiRes<List<GoogleFormResponse>>> getGoogleFormsByGeneration(
             @Parameter(description = "기수") @PathVariable Integer generation,
@@ -322,6 +335,7 @@ public class GoogleFormController {
 
     // 특정 기수의 활성화된 구글 폼 조회
     @GetMapping("/generation/{generation}/active")
+    @RequireAdmin
     @Operation(summary = "특정 기수의 활성화된 구글 폼 조회", description = "특정 기수에서 현재 활성화된 구글 폼을 조회합니다.")
     public ResponseEntity<ApiRes<GoogleFormResponse>> getActiveGoogleFormByGeneration(
             @Parameter(description = "기수") @PathVariable Integer generation) {
@@ -337,6 +351,7 @@ public class GoogleFormController {
 
     // 현재 활성화된 기수 조회
     @GetMapping("/current-generation")
+    @RequireAdmin
     @Operation(summary = "현재 활성화된 기수 조회", description = "현재 활성화된 구글 폼의 기수를 조회합니다.")
     public ResponseEntity<ApiRes<Map<String, Object>>> getCurrentGeneration() {
 
@@ -354,6 +369,7 @@ public class GoogleFormController {
 
     // 가장 최신 기수 조회
     @GetMapping("/latest-generation")
+    @RequireAdmin
     @Operation(summary = "가장 최신 기수 조회", description = "등록된 구글 폼 중 가장 최신 기수를 조회합니다.")
     public ResponseEntity<ApiRes<Map<String, Object>>> getLatestGeneration() {
 
@@ -371,6 +387,7 @@ public class GoogleFormController {
 
     // 기수 업데이트
     @PutMapping("/{id}/generation")
+    @RequireRoot
     @Operation(summary = "구글 폼 기수 업데이트", description = "구글 폼의 기수를 업데이트합니다.")
     public ResponseEntity<ApiRes<GoogleFormResponse>> updateGoogleFormGeneration(
             @Parameter(description = "구글 폼 ID") @PathVariable Long id,
@@ -394,6 +411,7 @@ public class GoogleFormController {
 
     // 기수 범위로 구글 폼 조회
     @GetMapping("/generation-range")
+    @RequireAdmin
     @Operation(summary = "기수 범위로 구글 폼 조회", description = "특정 기수 범위의 구글 폼들을 조회합니다.")
     public ResponseEntity<ApiRes<List<GoogleFormResponse>>> getGoogleFormsByGenerationRange(
             @Parameter(description = "시작 기수") @RequestParam Integer startGeneration,
