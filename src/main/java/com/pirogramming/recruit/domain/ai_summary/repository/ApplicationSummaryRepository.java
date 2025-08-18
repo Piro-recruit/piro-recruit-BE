@@ -26,12 +26,19 @@ public interface ApplicationSummaryRepository extends JpaRepository<ApplicationS
            "WHERE a.processingStatus = :status ORDER BY a.createdAt ASC")
     List<ApplicationSummary> findOldestPendingTasksAll(@Param("status") ApplicationSummary.ProcessingStatus status);
     
-    // Pageable을 사용한 버전
+    // 배치 처리용 최적화된 쿼리 - ID만 먼저 조회하여 페이징 적용
+    @Query("SELECT a.id FROM ApplicationSummary a " +
+           "WHERE a.processingStatus = :status " +
+           "ORDER BY a.createdAt ASC")
+    List<Long> findPendingTaskIds(@Param("status") ApplicationSummary.ProcessingStatus status, org.springframework.data.domain.Pageable pageable);
+    
+    // ID 기반으로 필요한 연관 데이터와 함께 조회
     @Query("SELECT DISTINCT a FROM ApplicationSummary a " +
-           "LEFT JOIN FETCH a.webhookApplication " +
+           "LEFT JOIN FETCH a.webhookApplication w " +
            "LEFT JOIN FETCH a.items " +
-           "WHERE a.processingStatus = :status")
-    List<ApplicationSummary> findOldestPendingTasks(@Param("status") ApplicationSummary.ProcessingStatus status, org.springframework.data.domain.Pageable pageable);
+           "WHERE a.id IN :ids " +
+           "ORDER BY a.createdAt ASC")
+    List<ApplicationSummary> findByIdsWithAssociations(@Param("ids") List<Long> ids);
     
     // 실패한 작업 중 재시도 가능한 것들 조회
     @Query("SELECT a FROM ApplicationSummary a WHERE a.processingStatus = 'FAILED' AND a.retryCount < 3 AND a.processingCompletedAt < :retryAfter ORDER BY a.processingCompletedAt ASC")

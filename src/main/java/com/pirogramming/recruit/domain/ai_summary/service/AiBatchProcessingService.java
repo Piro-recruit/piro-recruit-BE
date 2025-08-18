@@ -93,15 +93,19 @@ public class AiBatchProcessingService {
      */
     public void processPendingBatch() {
         try {
-            // PENDING 상태의 작업들을 가장 오래된 순으로 조회 (Pageable 사용)
+            // 1단계: ID만 먼저 조회하여 페이징 적용 (성능 최적화)
             PageRequest pageRequest = PageRequest.of(0, batchSize, Sort.by("createdAt").ascending());
-            List<ApplicationSummary> pendingTasks = summaryRepository
-                .findOldestPendingTasks(ApplicationSummary.ProcessingStatus.PENDING, pageRequest);
+            List<Long> pendingTaskIds = summaryRepository
+                .findPendingTaskIds(ApplicationSummary.ProcessingStatus.PENDING, pageRequest);
             
-            if (pendingTasks.isEmpty()) {
+            if (pendingTaskIds.isEmpty()) {
                 log.debug("No pending AI summary tasks found");
                 return;
             }
+            
+            // 2단계: 필요한 연관 데이터와 함께 조회
+            List<ApplicationSummary> pendingTasks = summaryRepository
+                .findByIdsWithAssociations(pendingTaskIds);
             
             log.info("Processing {} pending AI summary tasks", pendingTasks.size());
             
