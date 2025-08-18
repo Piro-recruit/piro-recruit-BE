@@ -23,8 +23,8 @@ public class EvaluationResponse {
         this.id = evaluation.getId();
         this.applicationId = evaluation.getApplication().getId();
         this.applicantName = evaluation.getApplication().getApplicantName();
-        this.evaluatorId = evaluation.getEvaluator().getId();
-        this.evaluatorName = evaluation.getEvaluator().getIdentifierName();
+        this.evaluatorId = evaluation.getEvaluatorId();
+        this.evaluatorName = evaluation.getEvaluatorName();
         this.score = evaluation.getScore();
         this.comment = evaluation.getComment();
         this.createdAt = evaluation.getCreatedAt();

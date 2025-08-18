@@ -42,7 +42,8 @@ public class EvaluationService {
 
         Evaluation evaluation = Evaluation.builder()
             .application(application)
-            .evaluator(evaluator)
+            .evaluatorId(evaluatorId)
+            .evaluatorName(evaluator.getIdentifierName())
             .score(request.getScore())
             .comment(request.getComment())
             .build();
@@ -56,7 +57,7 @@ public class EvaluationService {
         Evaluation evaluation = evaluationRepository.findById(evaluationId)
             .orElseThrow(() -> new IllegalArgumentException("평가를 찾을 수 없습니다: " + evaluationId));
 
-        if (!evaluation.getEvaluator().getId().equals(evaluatorId)) {
+        if (!evaluation.getEvaluatorId().equals(evaluatorId)) {
             throw new IllegalStateException("본인이 작성한 평가만 수정할 수 있습니다");
         }
 
@@ -69,7 +70,7 @@ public class EvaluationService {
         Evaluation evaluation = evaluationRepository.findById(evaluationId)
             .orElseThrow(() -> new IllegalArgumentException("평가를 찾을 수 없습니다: " + evaluationId));
 
-        if (!evaluation.getEvaluator().getId().equals(evaluatorId)) {
+        if (!evaluation.getEvaluatorId().equals(evaluatorId)) {
             throw new IllegalStateException("본인이 작성한 평가만 삭제할 수 있습니다");
         }
 

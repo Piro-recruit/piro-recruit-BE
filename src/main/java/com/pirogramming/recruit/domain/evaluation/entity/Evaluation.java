@@ -1,6 +1,5 @@
 package com.pirogramming.recruit.domain.evaluation.entity;
 
-import com.pirogramming.recruit.domain.admin.entity.Admin;
 import com.pirogramming.recruit.domain.webhook.entity.WebhookApplication;
 import com.pirogramming.recruit.global.entity.BaseTimeEntity;
 
@@ -38,9 +37,11 @@ public class Evaluation extends BaseTimeEntity {
     @JoinColumn(name = "application_id", nullable = false)
     private WebhookApplication application;
 
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "evaluator_id", nullable = false)
-    private Admin evaluator;
+    @Column(name = "evaluator_id", nullable = false)
+    private Long evaluatorId;
+
+    @Column(name = "evaluator_name", nullable = false)
+    private String evaluatorName;
 
     @Min(0)
     @Max(100)
@@ -51,9 +52,10 @@ public class Evaluation extends BaseTimeEntity {
     private String comment;
 
     @Builder
-    public Evaluation(WebhookApplication application, Admin evaluator, Integer score, String comment) {
+    public Evaluation(WebhookApplication application, Long evaluatorId, String evaluatorName, Integer score, String comment) {
         this.application = application;
-        this.evaluator = evaluator;
+        this.evaluatorId = evaluatorId;
+        this.evaluatorName = evaluatorName;
         this.score = score;
         this.comment = comment;
     }
