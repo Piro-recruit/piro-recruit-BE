@@ -29,7 +29,7 @@ public interface ApplicationSummaryRepository extends JpaRepository<ApplicationS
     // 배치 처리용 최적화된 쿼리 - ID만 먼저 조회하여 페이징 적용
     @Query("SELECT a.id FROM ApplicationSummary a " +
            "WHERE a.processingStatus = :status " +
-           "ORDER BY a.createdAt ASC")
+           "ORDER BY a.createdAt")
     List<Long> findPendingTaskIds(@Param("status") ApplicationSummary.ProcessingStatus status, org.springframework.data.domain.Pageable pageable);
     
     // ID 기반으로 필요한 연관 데이터와 함께 조회
@@ -37,7 +37,7 @@ public interface ApplicationSummaryRepository extends JpaRepository<ApplicationS
            "LEFT JOIN FETCH a.webhookApplication w " +
            "LEFT JOIN FETCH a.items " +
            "WHERE a.id IN :ids " +
-           "ORDER BY a.createdAt ASC")
+           "ORDER BY a.createdAt")
     List<ApplicationSummary> findByIdsWithAssociations(@Param("ids") List<Long> ids);
     
     // 실패한 작업 중 재시도 가능한 것들 조회
