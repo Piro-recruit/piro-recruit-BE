@@ -59,22 +59,16 @@ public class WebhookApplicationService {
             // 4) 처리 완료 상태로 마킹
             savedApplication.markAsProcessed();
 
-            // 5) AI 요약 생성·저장 (복합 유니크: formResponseId + applicantEmail 가정)
+            // 5) AI 요약 생성·저장 (WebhookApplication 엔티티와 연결)
             try {
-                applicationSummaryService.summarizeAndSaveFromWebhook(
-                        request.getFormId(),
-                        request.getFormResponseId(),
-                        request.getApplicantName(),
-                        request.getApplicantEmail(),
-                        request.getFormData()
-                );
-                log.info("요약 생성/저장 완료 - formResponseId: {}, email: {}",
-                        request.getFormResponseId(), request.getApplicantEmail());
+                applicationSummaryService.createPendingSummaryFromWebhook(savedApplication);
+                log.info("요약 생성/저장 완료 - applicationId: {}, email: {}",
+                        savedApplication.getId(), savedApplication.getApplicantEmail());
             } catch (RecruitException e) {
-                // 이미 같은 (formResponseId, email) 조합이 있으면 409로 들어올 수 있음 → 경고만 남기고 웹훅 저장은 유지
+                // 이미 AI 요약이 있으면 409로 들어올 수 있음 → 경고만 남기고 웹훅 저장은 유지
                 if (e.getStatus() != null && e.getStatus().value() == HttpStatus.CONFLICT.value()) {
-                    log.warn("요약 중복으로 저장 생략 - formResponseId: {}, email: {}",
-                            request.getFormResponseId(), request.getApplicantEmail());
+                    log.warn("요약 중복으로 저장 생략 - applicationId: {}, email: {}",
+                            savedApplication.getId(), savedApplication.getApplicantEmail());
                 } else {
                     log.error("요약 생성/저장 실패 - {}", e.getMessage(), e);
                 }
@@ -344,35 +338,15 @@ public class WebhookApplicationService {
     // ========================= summary_ai 전용 엔드포인트 =========================
 
     /**
-     * 요약 전용 수신 엔드포인트 (웹훅 원본 저장 없이 요약 테이블만 저장하고 단순 응답)
+     * 기존 WebhookApplication에 대해 AI 요약 생성 (수동 트리거용)
      */
     @Transactional
-    public WebhookApplicationResponse receiveAndSummarize(WebhookApplicationRequest req) {
-
-        applicationSummaryService.summarizeAndSaveFromWebhook(
-                req.getFormId(),
-                req.getFormResponseId(),
-                req.getApplicantName(),
-                req.getApplicantEmail(),
-                req.getFormData()
-        );
-
-        // 저장 자체는 요약 테이블에 하므로, 컨트롤러 응답은 간단 상태만 내려도 됨.
-        return WebhookApplicationResponse.builder()
-                .id(null)
-                .googleFormId(null)
-                .formId(req.getFormId())
-                .formTitle(null)
-                .applicantName(req.getApplicantName())
-                .applicantEmail(req.getApplicantEmail())
-                .formResponseId(req.getFormResponseId())
-                .submissionTimestamp(req.getSubmissionTimestamp())
-                .formData(req.getFormData())
-                .status("RECEIVED")
-                .errorMessage(null)
-                .aiAnalysis(null)
-                .createdAt(null)
-                .updatedAt(null)
-                .build();
+    public WebhookApplication generateSummaryForExistingApplication(Long applicationId) {
+        WebhookApplication application = getApplicationByIdRequired(applicationId);
+        
+        // AI 요약 생성 (동기식 - 테스트/즉시처리용)
+        applicationSummaryService.summarizeAndSaveFromWebhookSync(application);
+        
+        return application;
     }
 }
