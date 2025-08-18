@@ -1,6 +1,7 @@
 package com.pirogramming.recruit.domain.ai_summary.service;
 
 import java.util.List;
+import java.util.Objects;
 import java.util.stream.Collectors;
 
 import org.springframework.stereotype.Service;
@@ -127,31 +128,153 @@ public class ApplicationProcessingService {
 	
 	private ApplicationSummaryDto parseJsonResponse(String jsonResponse) {
 		try {
-			// JSON 응답에서 실제 JSON 부분만 추출
-			String cleanJson = extractJsonFromResponse(jsonResponse);
-			return objectMapper.readValue(cleanJson, ApplicationSummaryDto.class);
+			// 입력 검증
+			if (jsonResponse == null || jsonResponse.trim().isEmpty()) {
+				return createFallbackSummary();
+			}
+			
+			// 길이 제한 (DoS 방지)
+			if (jsonResponse.length() > 50000) {
+				return createFallbackSummary();
+			}
+			
+			// JSON 응답에서 실제 JSON 부분만 안전하게 추출
+			String cleanJson = extractJsonFromResponseSafely(jsonResponse);
+			ApplicationSummaryDto result = objectMapper.readValue(cleanJson, ApplicationSummaryDto.class);
+			
+			// 파싱된 결과 검증
+			return validateAndSanitizeSummary(result);
+			
 		} catch (JsonProcessingException e) {
-			// JSON 파싱 실패 시 기본값 반환
-			return new ApplicationSummaryDto(
-				"JSON 파싱 오류로 인한 기본 요약",
-				List.of("파싱 오류"),
-				List.of("N/A"),
-				"경력 정보 파싱 실패",
-				"동기 파싱 실패",
-				50
-			);
+			return createFallbackSummary();
+		} catch (IllegalArgumentException e) {
+			return createFallbackSummary();
+		} catch (Exception e) {
+			// 예상치 못한 오류는 민감정보 로깅 방지
+			return createFallbackSummary();
 		}
 	}
 	
-	private String extractJsonFromResponse(String response) {
-		// JSON 블록 찾기 (```json 또는 { 로 시작)
-		int startIndex = response.indexOf("{");
-		int endIndex = response.lastIndexOf("}");
-		
-		if (startIndex != -1 && endIndex != -1 && endIndex > startIndex) {
-			return response.substring(startIndex, endIndex + 1);
+	/**
+	 * 폴백 요약 생성 (민감정보 로깅 방지)
+	 */
+	private ApplicationSummaryDto createFallbackSummary() {
+		return new ApplicationSummaryDto(
+			"AI 분석 중 오류가 발생했습니다. 수동 검토가 필요합니다.",
+			List.of("분석 오류", "수동 검토 필요"),
+			List.of("분석 실패"),
+			"경험 분석을 완료할 수 없습니다.",
+			"동기 분석을 완료할 수 없습니다.",
+			0
+		);
+	}
+	
+	/**
+	 * 파싱된 요약 결과 검증 및 정제
+	 */
+	private ApplicationSummaryDto validateAndSanitizeSummary(ApplicationSummaryDto summary) {
+		if (summary == null) {
+			return createFallbackSummary();
 		}
 		
-		throw new IllegalArgumentException("유효한 JSON을 찾을 수 없습니다: " + response);
+		// 점수 범위 검증
+		int score = summary.getScoreOutOf100();
+		if (score < 0 || score > 100) {
+			score = Math.max(0, Math.min(100, score));
+		}
+		
+		// 텍스트 필드 정제
+		String cleanOverallSummary = sanitizeText(summary.getOverallSummary());
+		String cleanExperience = sanitizeText(summary.getExperience());
+		String cleanMotivation = sanitizeText(summary.getMotivation());
+		
+		// 리스트 필드 정제
+		List<String> cleanKeyStrengths = sanitizeList(summary.getKeyStrengths());
+		List<String> cleanTechnicalSkills = sanitizeList(summary.getTechnicalSkills());
+		
+		return new ApplicationSummaryDto(
+			cleanOverallSummary,
+			cleanKeyStrengths,
+			cleanTechnicalSkills,
+			cleanExperience,
+			cleanMotivation,
+			score
+		);
+	}
+	
+	/**
+	 * 텍스트 정제 (길이 제한 및 유해 콘텐츠 제거)
+	 */
+	private String sanitizeText(String text) {
+		if (text == null) return "";
+		
+		String cleaned = text
+			.replaceAll("[\\p{Cntrl}&&[^\r\n\t]]", "") // 제어 문자 제거
+			.replaceAll("\\s+", " ") // 연속 공백 정규화
+			.trim();
+		
+		// 길이 제한
+		if (cleaned.length() > 1000) {
+			cleaned = cleaned.substring(0, 997) + "...";
+		}
+		
+		return cleaned;
+	}
+	
+	/**
+	 * 리스트 정제
+	 */
+	private List<String> sanitizeList(List<String> list) {
+		if (list == null) return List.of();
+		
+		return list.stream()
+			.filter(Objects::nonNull)
+			.map(this::sanitizeText)
+			.filter(s -> !s.trim().isEmpty())
+			.collect(Collectors.toList());
+	}
+	
+	/**
+	 * 안전한 JSON 추출 (보안 강화)
+	 */
+	private String extractJsonFromResponseSafely(String response) {
+		if (response == null || response.trim().isEmpty()) {
+			throw new IllegalArgumentException("응답이 비어있습니다");
+		}
+		
+		// 중괄호 쌍을 정확히 매칭하여 JSON 추출
+		int braceCount = 0;
+		int startIndex = -1;
+		int endIndex = -1;
+		
+		for (int i = 0; i < response.length(); i++) {
+			char c = response.charAt(i);
+			if (c == '{') {
+				if (startIndex == -1) {
+					startIndex = i;
+				}
+				braceCount++;
+			} else if (c == '}') {
+				braceCount--;
+				if (braceCount == 0 && startIndex != -1) {
+					endIndex = i;
+					break;
+				}
+			}
+		}
+		
+		if (startIndex == -1 || endIndex == -1 || endIndex <= startIndex) {
+			throw new IllegalArgumentException("유효한 JSON 구조를 찾을 수 없습니다");
+		}
+		
+		String jsonCandidate = response.substring(startIndex, endIndex + 1);
+		
+		// 기본적인 JSON 구조 검증
+		if (!jsonCandidate.contains("overallSummary") || 
+			!jsonCandidate.contains("scoreOutOf100")) {
+			throw new IllegalArgumentException("필수 필드가 누락된 JSON입니다");
+		}
+		
+		return jsonCandidate;
 	}
 }

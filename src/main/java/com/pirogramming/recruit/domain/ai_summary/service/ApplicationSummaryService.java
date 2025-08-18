@@ -1,17 +1,23 @@
 package com.pirogramming.recruit.domain.ai_summary.service;
 
+import java.util.Collections;
+import java.util.LinkedHashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.Objects;
+import java.util.stream.Collectors;
+
+import org.springframework.http.HttpStatus;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
 import com.pirogramming.recruit.domain.ai_summary.dto.ApplicationQuestionDto;
 import com.pirogramming.recruit.domain.ai_summary.dto.ApplicationSummaryDto;
 import com.pirogramming.recruit.domain.ai_summary.entity.ApplicationSummary;
 import com.pirogramming.recruit.domain.ai_summary.repository.ApplicationSummaryRepository;
 import com.pirogramming.recruit.global.exception.RecruitException;
-import lombok.RequiredArgsConstructor;
-import org.springframework.http.HttpStatus;
-import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
 
-import java.util.*;
-import java.util.stream.Collectors;
+import lombok.RequiredArgsConstructor;
 
 @Service
 @RequiredArgsConstructor
@@ -56,7 +62,7 @@ public class ApplicationSummaryService {
     private List<ApplicationQuestionDto> convertFormDataWithNumericFilter(Map<String, Object> formData) {
         if (formData == null) return Collections.emptyList();
         
-        return formData.entrySet().stream()
+        List<ApplicationQuestionDto> questions = formData.entrySet().stream()
                 .filter(entry -> isNumericPrefixed(entry.getKey())) // 숫자로 시작하는 질문만 필터링
                 .filter(entry -> isValidFormEntry(entry.getKey(), entry.getValue())) // 입력 검증
                 .sorted((e1, e2) -> compareNumericPrefix(e1.getKey(), e2.getKey())) // 숫자 기준 오름차순 정렬
@@ -64,6 +70,17 @@ public class ApplicationSummaryService {
                         sanitizeInput(e.getKey()), 
                         sanitizeInput(Objects.toString(e.getValue(), ""))))
                 .collect(Collectors.toList());
+        
+        // 전체 프롬프트 크기 제한 (DoS 방지)
+        int totalLength = questions.stream()
+                .mapToInt(q -> q.getQuestion().length() + q.getAnswer().length())
+                .sum();
+        
+        if (totalLength > 15000) { // 전체 합계 15KB 제한
+            throw new RecruitException(HttpStatus.BAD_REQUEST, "전체 지원서 내용이 너무 깁니다. 답변을 줄여주세요.");
+        }
+        
+        return questions;
     }
 
     /**
@@ -75,8 +92,8 @@ public class ApplicationSummaryService {
         
         String valueStr = Objects.toString(value, "");
         
-        // 길이 제한 (DoS 방지)
-        if (key.length() > 200 || valueStr.length() > 10000) {
+        // 길이 제한 (DoS 방지) - 각 질문/답변 당
+        if (key.length() > 500 || valueStr.length() > 2000) {
             return false;
         }
         

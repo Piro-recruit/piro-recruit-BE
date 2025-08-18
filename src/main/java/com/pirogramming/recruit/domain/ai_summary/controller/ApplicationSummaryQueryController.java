@@ -33,7 +33,7 @@ public class ApplicationSummaryQueryController {
         // 입력 검증
         if (webhookApplicationId == null || webhookApplicationId <= 0) {
             return ResponseEntity.badRequest()
-                    .body(ApiRes.failure(HttpStatus.BAD_REQUEST, "유효하지 않은 WebhookApplication ID입니다.", ErrorCode.INVALID_INPUT_VALUE));
+                    .body(ApiRes.failure(HttpStatus.BAD_REQUEST, "유효하지 않은 WebhookApplication ID입니다.", ErrorCode.INVALID_ARGUMENT));
         }
 
         Optional<ApplicationSummary> result = repository.findByWebhookApplicationId(webhookApplicationId);
@@ -41,7 +41,7 @@ public class ApplicationSummaryQueryController {
         return result
                 .map(s -> ResponseEntity.ok(ApiRes.success(s, "요약 결과 조회 성공")))
                 .orElseGet(() -> ResponseEntity.status(HttpStatus.NOT_FOUND)
-                        .body(ApiRes.failure(HttpStatus.NOT_FOUND, "해당 지원서의 AI 요약이 존재하지 않습니다.", ErrorCode.RESOURCE_NOT_FOUND)));
+                        .body(ApiRes.failure(HttpStatus.NOT_FOUND, "해당 지원서의 AI 요약이 존재하지 않습니다.", ErrorCode.NOT_FOUND)));
     }
 
     @GetMapping("/all")
@@ -61,7 +61,7 @@ public class ApplicationSummaryQueryController {
         // 입력 검증
         if (summaryId == null || summaryId <= 0) {
             return ResponseEntity.badRequest()
-                    .body(ApiRes.failure(HttpStatus.BAD_REQUEST, "유효하지 않은 요약 ID입니다.", ErrorCode.INVALID_INPUT_VALUE));
+                    .body(ApiRes.failure(HttpStatus.BAD_REQUEST, "유효하지 않은 요약 ID입니다.", ErrorCode.INVALID_ARGUMENT));
         }
 
         Optional<ApplicationSummary> result = repository.findById(summaryId);
@@ -69,6 +69,6 @@ public class ApplicationSummaryQueryController {
         return result
                 .map(s -> ResponseEntity.ok(ApiRes.success(s, "요약 결과 조회 성공")))
                 .orElseGet(() -> ResponseEntity.status(HttpStatus.NOT_FOUND)
-                        .body(ApiRes.failure(HttpStatus.NOT_FOUND, "해당 AI 요약이 존재하지 않습니다.", ErrorCode.RESOURCE_NOT_FOUND)));
+                        .body(ApiRes.failure(HttpStatus.NOT_FOUND, "해당 AI 요약이 존재하지 않습니다.", ErrorCode.NOT_FOUND)));
     }
 }
