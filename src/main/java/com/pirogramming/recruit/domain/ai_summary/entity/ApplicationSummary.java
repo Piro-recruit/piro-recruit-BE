@@ -1,5 +1,6 @@
 package com.pirogramming.recruit.domain.ai_summary.entity;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.pirogramming.recruit.domain.webhook.entity.WebhookApplication;
 import com.pirogramming.recruit.global.entity.BaseTimeEntity;
 import jakarta.persistence.*;
@@ -22,6 +23,7 @@ public class ApplicationSummary extends BaseTimeEntity {
     // WebhookApplication과 1:1 관계
     @OneToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "webhook_application_id", nullable = false, unique = true)
+    @JsonIgnore  // JSON 직렬화 시 순환참조 방지
     private WebhookApplication webhookApplication;
 
     // 요약 결과를 Key-Value로 저장
