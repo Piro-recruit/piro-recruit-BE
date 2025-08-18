@@ -22,16 +22,6 @@ public class ApplicationSummaryDto {
     @Schema(description = "점수 산출 근거 (객관적)", example = "열정 및 학습 태도: 30/40점 - 프로젝트 경험과 학습 계획이 구체적임. 협업 잠재력: 22/30점 - 팀 프로젝트 경험 보유. 기술적 기반: 16/20점 - 다양한 기술 스택 학습 경험. 성장 마인드셋: 8/10점 - 지속적인 개선 의지 확인됨.")
     private String scoreReason;
     
-    // 기존 호환성을 위한 생성자 (fallback 용도)
-    public ApplicationSummaryDto(String overallSummary, List<String> keyStrengths, 
-                                List<String> technicalSkills, String experience, 
-                                String motivation, int scoreOutOf100) {
-        this.scoreOutOf100 = scoreOutOf100;
-        this.scoreReason = "분석 오류로 인해 점수 근거를 제공할 수 없습니다.";
-        // 기존 데이터를 questionSummaries로 변환하지 않고 null로 유지
-        this.questionSummaries = null;
-    }
-    
     @Schema(description = "개별 질문에 대한 AI 요약")
     @Data
     @NoArgsConstructor
