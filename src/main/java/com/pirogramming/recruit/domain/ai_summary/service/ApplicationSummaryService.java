@@ -247,13 +247,6 @@ public class ApplicationSummaryService {
         }
     }
 
-    private List<ApplicationQuestionDto> convertFormData(Map<String, Object> formData) {
-        if (formData == null) return Collections.emptyList();
-        return formData.entrySet().stream()
-                .map(e -> new ApplicationQuestionDto(e.getKey(), Objects.toString(e.getValue(), "")))
-                .collect(Collectors.toList());
-    }
-
     /**
      * ApplicationSummaryDto를 저장하기 쉬운 K/V로 평탄화
      */
