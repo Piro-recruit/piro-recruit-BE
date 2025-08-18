@@ -440,4 +440,38 @@ public class ApplicationSummaryService {
     }
 
     private String n(String s) { return s == null ? "" : s; }
+
+    /**
+     * WebhookApplication ID로 요약 조회
+     */
+    @Transactional(readOnly = true)
+    public ApplicationSummary getByWebhookApplicationId(Long webhookApplicationId) {
+        if (webhookApplicationId == null || webhookApplicationId <= 0) {
+            throw new RecruitException(HttpStatus.BAD_REQUEST, "유효하지 않은 WebhookApplication ID입니다.");
+        }
+
+        return summaryRepository.findByWebhookApplicationId(webhookApplicationId)
+                .orElseThrow(() -> new RecruitException(HttpStatus.NOT_FOUND, "해당 지원서의 AI 요약이 존재하지 않습니다."));
+    }
+
+    /**
+     * 모든 AI 요약 조회 (최신순)
+     */
+    @Transactional(readOnly = true)
+    public List<ApplicationSummary> getAllSummaries() {
+        return summaryRepository.findAllByOrderByCreatedAtDesc();
+    }
+
+    /**
+     * AI 요약 ID로 조회
+     */
+    @Transactional(readOnly = true)
+    public ApplicationSummary getSummaryById(Long summaryId) {
+        if (summaryId == null || summaryId <= 0) {
+            throw new RecruitException(HttpStatus.BAD_REQUEST, "유효하지 않은 요약 ID입니다.");
+        }
+
+        return summaryRepository.findById(summaryId)
+                .orElseThrow(() -> new RecruitException(HttpStatus.NOT_FOUND, "해당 AI 요약이 존재하지 않습니다."));
+    }
 }
