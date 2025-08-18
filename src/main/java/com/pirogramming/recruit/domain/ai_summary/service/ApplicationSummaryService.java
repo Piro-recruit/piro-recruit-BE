@@ -212,6 +212,7 @@ public class ApplicationSummaryService {
         if (dto == null) return map;
 
         map.put("scoreOutOf100", String.valueOf(dto.getScoreOutOf100()));
+        map.put("scoreReason", n(dto.getScoreReason()));
 
         // 질문별 요약을 JSON 형태로 저장
         if (dto.getQuestionSummaries() != null) {

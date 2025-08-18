@@ -87,7 +87,8 @@ public class ApplicationProcessingService {
 			    },
 			    // ... repeat for each question
 			  ],
-			  "scoreOutOf100": evaluation_score_number_between_0_and_100
+			  "scoreOutOf100": evaluation_score_number_between_0_and_100,
+			  "scoreReason": "Objective scoring rationale in Korean formal writing style"
 			}
 			
 			For each question-answer pair:
@@ -95,6 +96,13 @@ public class ApplicationProcessingService {
 			- Highlight relevant skills, experiences, or attitudes shown in that specific answer
 			- Keep the original question text exactly as provided
 			- Do NOT include the original answer text in the response
+			- Use formal Korean writing style (문어체) for all summaries
+			
+			For scoreReason:
+			- Provide objective breakdown by evaluation criteria with specific point allocation
+			- Format: "열정 및 학습 태도: X/40점 - specific evidence. 협업 잠재력: Y/30점 - specific evidence. 기술적 기반: Z/20점 - specific evidence. 성장 마인드셋: W/10점 - specific evidence."
+			- Base points on concrete evidence from the answers, not subjective impressions
+			- Use formal Korean writing style (문어체)
 			
 			Evaluation Criteria (100 points total):
 			1. Passion & Learning Attitude (40 points):
@@ -170,6 +178,7 @@ public class ApplicationProcessingService {
 		ApplicationSummaryDto fallback = new ApplicationSummaryDto();
 		fallback.setQuestionSummaries(List.of());
 		fallback.setScoreOutOf100(0);
+		fallback.setScoreReason("AI 분석 중 오류가 발생하여 점수 근거를 제공할 수 없습니다.");
 		return fallback;
 	}
 	
@@ -196,9 +205,14 @@ public class ApplicationProcessingService {
 				.collect(Collectors.toList());
 		}
 		
+		// scoreReason 정제
+		String cleanScoreReason = sanitizeText(summary.getScoreReason());
+		
 		ApplicationSummaryDto result = new ApplicationSummaryDto();
 		result.setQuestionSummaries(cleanQuestionSummaries != null ? cleanQuestionSummaries : List.of());
 		result.setScoreOutOf100(score);
+		result.setScoreReason(cleanScoreReason != null && !cleanScoreReason.isEmpty() ? 
+			cleanScoreReason : "점수 근거를 제공할 수 없습니다.");
 		return result;
 	}
 	
@@ -288,7 +302,8 @@ public class ApplicationProcessingService {
 		
 		// 기본적인 JSON 구조 검증
 		if (!jsonCandidate.contains("questionSummaries") || 
-			!jsonCandidate.contains("scoreOutOf100")) {
+			!jsonCandidate.contains("scoreOutOf100") ||
+			!jsonCandidate.contains("scoreReason")) {
 			throw new IllegalArgumentException("필수 필드가 누락된 JSON입니다");
 		}
 		
