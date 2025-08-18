@@ -6,6 +6,7 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.stream.Collectors;
 
+import com.pirogramming.recruit.domain.ai_summary.repository.ApplicationSummaryRepository;
 import com.pirogramming.recruit.domain.ai_summary.service.ApplicationSummaryService;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
@@ -34,6 +35,8 @@ public class WebhookApplicationService {
     private final GoogleFormService googleFormService;
     private final ApplicationSummaryService applicationSummaryService;
 
+    // 추가 - 상위 N명 1차 합격 로직 (일괄 상태 로직 변경)
+    private final ApplicationSummaryRepository applicationSummaryRepository;
     /**
      * 구글 폼에서 전송된 지원서 데이터를 저장 + AI 요약 트리거
      * - 중복 정책: formResponseId만 중복 불가 (같은 이메일의 복수 지원 허용)
@@ -375,4 +378,62 @@ public class WebhookApplicationService {
                 .updatedAt(null)
                 .build();
     }
+
+    /**
+     * 구글 폼 기준, 점수 상위 N명을 1차 합격(FIRST_PASS)으로 일괄 변경
+     * - 대상: 해당 구글 폼의 'PENDING' 상태 지원자들만
+     * - 점수: ApplicationSummary.items["scoreOutOf100"] (없거나 파싱 실패 시 0점 취급)
+     * - 반환: 실제로 FIRST_PASS로 변경된 지원서 목록
+     */
+    @Transactional
+    public List<WebhookApplication> updateFirstPassTopN(Long googleFormId, int topN) {
+        if (topN <= 0) {
+            throw new RecruitException(HttpStatus.BAD_REQUEST, com.pirogramming.recruit.global.exception.code.ErrorCode.INVALID_ARGUMENT);
+        }
+
+        // 1) 해당 구글 폼의 '대기(PENDING)' 상태 지원자만 조회
+        List<WebhookApplication> pendingApps =
+                webhookApplicationRepository.findByGoogleFormIdAndPassStatus(
+                        googleFormId, WebhookApplication.PassStatus.PENDING
+                );
+
+        // 2) 각 지원자의 요약 점수 조회 -> (앱, 점수) 목록 생성
+        record ScoredApp(WebhookApplication app, int score) {}
+        List<ScoredApp> scored = pendingApps.stream()
+                .map(app -> {
+                    int score = applicationSummaryRepository
+                            .findByFormResponseIdAndApplicantEmail(app.getFormResponseId(), app.getApplicantEmail())
+                            .map(sum -> {
+                                try {
+                                    // ApplicationSummary.getItems().get("scoreOutOf100") 로 저장되어 있음
+                                    String v = sum.getItems().get("scoreOutOf100");
+                                    return (v == null || v.isBlank()) ? 0 : Integer.parseInt(v.trim());
+                                } catch (Exception e) {
+                                    return 0;
+                                }
+                            })
+                            .orElse(0);
+                    return new ScoredApp(app, score);
+                })
+                .sorted((a, b) -> Integer.compare(b.score(), a.score())) // 점수 내림차순
+                .toList();
+
+        // 3) 상위 N명 선별(대상 부족하면 가능한 만큼)
+        int limit = Math.min(topN, scored.size());
+        List<WebhookApplication> toFirstPass = scored.subList(0, limit).stream()
+                .map(ScoredApp::app)
+                .toList();
+
+        // 4) 상태 변경
+        for (WebhookApplication app : toFirstPass) {
+            app.markAsFirstPass();
+        }
+
+        // 5) 저장
+        List<WebhookApplication> saved = webhookApplicationRepository.saveAll(toFirstPass);
+        log.info("구글폼 {} 상위 {}명 FIRST_PASS 처리 완료", googleFormId, saved.size());
+
+        return saved;
+    }
+
 }

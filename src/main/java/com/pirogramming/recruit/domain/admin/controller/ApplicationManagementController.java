@@ -15,6 +15,7 @@ import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.RequestParam;
 
 import com.pirogramming.recruit.domain.webhook.dto.WebhookApplicationResponse;
 import com.pirogramming.recruit.domain.webhook.entity.WebhookApplication;
@@ -146,4 +147,28 @@ public class ApplicationManagementController {
                                 googleFormId, status, responses.size()))
         );
     }
+
+    // 점수 상위 N명 1차 합격 처리 (ROOT 전용)
+    @PutMapping("/google-form/{googleFormId}/first-pass/top")
+    @RequireRoot
+    @Operation(summary = "점수 상위 N명 1차 합격 처리",
+            description = "해당 구글 폼의 PENDING 지원자 중 점수 상위 N명을 1차 합격(FIRST_PASS)로 일괄 변경합니다. (ROOT만 가능)")
+    public ResponseEntity<ApiRes<List<WebhookApplicationResponse>>> markFirstPassTopN(
+            @Parameter(description = "구글 폼 내부 ID") @PathVariable Long googleFormId,
+            @Parameter(description = "선발 인원 N") @RequestParam(name = "count") int count) {
+
+        log.info("상위 {}명 1차 합격 처리 요청 - googleFormId: {}", count, googleFormId);
+
+        List<WebhookApplication> changed = webhookApplicationService.updateFirstPassTopN(googleFormId, count);
+
+        List<WebhookApplicationResponse> responses = changed.stream()
+                .map(WebhookApplicationResponse::from)
+                .collect(Collectors.toList());
+
+        return ResponseEntity.ok(
+                ApiRes.success(responses,
+                        String.format("구글 폼 %d에서 점수 상위 %d명을 1차 합격 처리했습니다.", googleFormId, responses.size()))
+        );
+    }
+
 }
