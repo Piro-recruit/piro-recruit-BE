@@ -13,6 +13,7 @@ import org.springframework.web.bind.annotation.RestController;
 import com.pirogramming.recruit.domain.ai_summary.dto.ApplicationQuestionDto;
 import com.pirogramming.recruit.domain.ai_summary.dto.ApplicationSummaryDto;
 import com.pirogramming.recruit.domain.ai_summary.service.ApplicationProcessingService;
+import com.pirogramming.recruit.domain.ai_summary.util.InputValidationUtil;
 import com.pirogramming.recruit.global.exception.ApiRes;
 import com.pirogramming.recruit.global.exception.code.ErrorCode;
 import com.pirogramming.recruit.global.security.RequireAdmin;
@@ -170,25 +171,8 @@ public class AiSummaryController {
 		@Valid @RequestBody @Size(max = 20, message = "질문은 최대 20개까지 가능합니다") List<@Valid ApplicationQuestionDto> questions) {
 		
 		// 입력 검증
-		if (questions == null || questions.isEmpty()) {
-			return ApiRes.failure(HttpStatus.BAD_REQUEST, "질문 목록이 비어있습니다.", ErrorCode.INVALID_ARGUMENT);
-		}
-		
-		// 개별 질문/답변 길이 검증
-		for (ApplicationQuestionDto question : questions) {
-			if (question.getQuestion() == null || question.getQuestion().trim().isEmpty()) {
-				return ApiRes.failure(HttpStatus.BAD_REQUEST, "질문이 비어있습니다.", ErrorCode.INVALID_ARGUMENT);
-			}
-			if (question.getAnswer() == null || question.getAnswer().trim().isEmpty()) {
-				return ApiRes.failure(HttpStatus.BAD_REQUEST, "답변이 비어있습니다.", ErrorCode.INVALID_ARGUMENT);
-			}
-			if (question.getQuestion().length() > 500) {
-				return ApiRes.failure(HttpStatus.BAD_REQUEST, "질문이 너무 깁니다 (최대 500자).", ErrorCode.INVALID_ARGUMENT);
-			}
-			if (question.getAnswer().length() > 5000) {
-				return ApiRes.failure(HttpStatus.BAD_REQUEST, "답변이 너무 깁니다 (최대 5000자).", ErrorCode.INVALID_ARGUMENT);
-			}
-		}
+		InputValidationUtil.validateQuestionList(questions);
+		InputValidationUtil.validateQuestionContent(questions);
 		
 		// 비동기 처리로 성능 개선
 		try {
