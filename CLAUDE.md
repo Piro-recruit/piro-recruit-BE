@@ -157,14 +157,20 @@ fix auth: resolve authentication error on login
 - Swagger UI available at `/swagger-ui.html`
 - Uses CommonMark for Markdown processing
 - Docker environment requires `.env` file with database credentials and API keys
+- Current recruitment level configured as 25 (configurable via `recruitment.current-level`)
+
+## Required Environment Variables
+The application requires the following environment variables in `.env` file:
+- `DB_USERNAME`, `DB_PASSWORD`: PostgreSQL database credentials
+- `JWT_SECRET`: JWT token signing secret
+- `ROOT_ADMIN_LOGIN_CODE`: Root admin authentication code
+- `OPENAI_API_KEY`: OpenAI API key for AI summary features
+- `WEBHOOK_API_KEY`: API key for webhook authentication
+- `STMP_USER_ID`, `STMP_PASSWORD`: Gmail SMTP credentials for email service
+- `ADMIN_TEST_EMAIL`: Admin test email address (optional, defaults to rlarbdlf222@naver.com)
 
 ## Development Guidelines
 - ALWAYS prefer editing existing files over creating new ones
 - NEVER create files unless absolutely necessary for the task
 - NEVER proactively create documentation files (*.md) or README files unless explicitly requested
 
-# important-instruction-reminders
-Do what has been asked; nothing more, nothing less.
-NEVER create files unless they're absolutely necessary for achieving your goal.
-ALWAYS prefer editing an existing file to creating a new one.
-NEVER proactively create documentation files (*.md) or README files. Only create documentation files if explicitly requested by the User.

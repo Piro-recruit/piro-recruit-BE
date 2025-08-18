@@ -61,7 +61,7 @@ public class WebhookApplicationService {
 
             // 5) AI 요약 생성·저장 (WebhookApplication 엔티티와 연결)
             try {
-                applicationSummaryService.summarizeAndSaveFromWebhook(savedApplication);
+                applicationSummaryService.createPendingSummaryFromWebhook(savedApplication);
                 log.info("요약 생성/저장 완료 - applicationId: {}, email: {}",
                         savedApplication.getId(), savedApplication.getApplicantEmail());
             } catch (RecruitException e) {
@@ -344,8 +344,8 @@ public class WebhookApplicationService {
     public WebhookApplication generateSummaryForExistingApplication(Long applicationId) {
         WebhookApplication application = getApplicationByIdRequired(applicationId);
         
-        // AI 요약 생성
-        applicationSummaryService.summarizeAndSaveFromWebhook(application);
+        // AI 요약 생성 (동기식 - 테스트/즉시처리용)
+        applicationSummaryService.summarizeAndSaveFromWebhookSync(application);
         
         return application;
     }

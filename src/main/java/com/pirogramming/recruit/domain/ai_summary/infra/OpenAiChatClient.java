@@ -3,6 +3,7 @@ package com.pirogramming.recruit.domain.ai_summary.infra;
 import java.time.Duration;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.Semaphore;
 
 import org.springframework.core.ParameterizedTypeReference;
 import org.springframework.stereotype.Component;
@@ -21,6 +22,14 @@ import lombok.extern.slf4j.Slf4j;
 public class OpenAiChatClient implements LlmClient {
 
 	private final WebClient openAiWebClient;
+	
+	// OpenAI API 동시 호출 제한 (40개 중 10개만 동시 처리)
+	private final Semaphore openAiSemaphore = new Semaphore(10);
+	
+	// API 호출 통계
+	private volatile long totalRequests = 0;
+	private volatile long successfulRequests = 0;
+	private volatile long failedRequests = 0;
 
 	@Override
 	public String chat(String prompt) {
@@ -35,19 +44,63 @@ public class OpenAiChatClient implements LlmClient {
 	
 	@Override
 	public CompletableFuture<String> chatAsync(String prompt) {
-		Map<String, Object> requestBody = createRequestBody(prompt);
+		totalRequests++;
 		
-		return openAiWebClient.post()
-			.uri("/chat/completions")
-			.body(BodyInserters.fromValue(requestBody))
-			.retrieve()
-			.bodyToMono(new ParameterizedTypeReference<Map<String, Object>>() {})
-			.timeout(Duration.ofSeconds(30)) // 30초 타임아웃
-			.doOnSuccess(response -> log.info("OpenAI API call completed successfully"))
-			.doOnError(error -> handleAsyncError(error))
-			.map(this::extractContentFromResponse)
-			.onErrorReturn(createFallbackResponse())
-			.toFuture();
+		return CompletableFuture.supplyAsync(() -> {
+			try {
+				// Semaphore로 동시 호출 제한
+				openAiSemaphore.acquire();
+				log.debug("Acquired OpenAI API semaphore. Available permits: {}", openAiSemaphore.availablePermits());
+				
+				Map<String, Object> requestBody = createRequestBody(prompt);
+				
+				return openAiWebClient.post()
+					.uri("/chat/completions")
+					.body(BodyInserters.fromValue(requestBody))
+					.retrieve()
+					.bodyToMono(new ParameterizedTypeReference<Map<String, Object>>() {})
+					.timeout(Duration.ofSeconds(45)) // 타임아웃 45초로 증가
+					.doOnSuccess(response -> {
+						successfulRequests++;
+						log.debug("OpenAI API call completed successfully. Success rate: {}/{}", 
+							successfulRequests, totalRequests);
+					})
+					.doOnError(error -> {
+						failedRequests++;
+						handleAsyncError(error);
+					})
+					.map(this::extractContentFromResponse)
+					.onErrorReturn(createFallbackResponse())
+					.block(); // CompletableFuture 내부에서 block() 사용
+					
+			} catch (InterruptedException e) {
+				Thread.currentThread().interrupt();
+				failedRequests++;
+				log.error("OpenAI API call interrupted");
+				return createFallbackResponse();
+			} catch (Exception e) {
+				failedRequests++;
+				log.error("OpenAI API call failed with unexpected error", e);
+				return createFallbackResponse();
+			} finally {
+				openAiSemaphore.release();
+				log.debug("Released OpenAI API semaphore. Available permits: {}", openAiSemaphore.availablePermits());
+			}
+		});
+	}
+	
+	/**
+	 * API 호출 통계 조회
+	 */
+	public Map<String, Object> getApiStats() {
+		return Map.of(
+			"totalRequests", totalRequests,
+			"successfulRequests", successfulRequests,
+			"failedRequests", failedRequests,
+			"successRate", totalRequests > 0 ? (double) successfulRequests / totalRequests * 100 : 0,
+			"availablePermits", openAiSemaphore.availablePermits(),
+			"queueLength", openAiSemaphore.getQueueLength()
+		);
 	}
 	
 	/**

@@ -19,7 +19,9 @@ import com.pirogramming.recruit.domain.ai_summary.repository.ApplicationSummaryR
 import com.pirogramming.recruit.global.exception.RecruitException;
 
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 
+@Slf4j
 @Service
 @RequiredArgsConstructor
 public class ApplicationSummaryService {
@@ -27,11 +29,33 @@ public class ApplicationSummaryService {
     private final ApplicationSummaryRepository summaryRepository;
 
     /**
-     * Webhook에서 받은 폼 데이터를 요약하고 WebhookApplication과 연결하여 저장.
+     * Webhook에서 받은 폼 데이터로 AI 요약 레코드를 즉시 생성 (PENDING 상태)
+     * 실제 AI 처리는 비동기로 수행
      */
     @Transactional
-    public ApplicationSummary summarizeAndSaveFromWebhook(com.pirogramming.recruit.domain.webhook.entity.WebhookApplication webhookApplication) {
+    public ApplicationSummary createPendingSummaryFromWebhook(com.pirogramming.recruit.domain.webhook.entity.WebhookApplication webhookApplication) {
+        // 이미 AI 요약이 존재하는지 확인
+        if (webhookApplication.getApplicationSummary() != null) {
+            throw new RecruitException(HttpStatus.CONFLICT, "이미 AI 요약이 생성된 지원서입니다.");
+        }
 
+        // PENDING 상태로 즉시 저장 (AI 처리는 나중에)
+        ApplicationSummary pendingSummary = summaryRepository.save(
+                ApplicationSummary.builder()
+                        .webhookApplication(webhookApplication)
+                        .processingStatus(ApplicationSummary.ProcessingStatus.PENDING)
+                        .build()
+        );
+
+        log.info("Created pending AI summary for application ID: {}", webhookApplication.getId());
+        return pendingSummary;
+    }
+
+    /**
+     * 기존 방식 유지 (동기 처리) - 테스트나 즉시 처리가 필요한 경우
+     */
+    @Transactional
+    public ApplicationSummary summarizeAndSaveFromWebhookSync(com.pirogramming.recruit.domain.webhook.entity.WebhookApplication webhookApplication) {
         // 이미 AI 요약이 존재하는지 확인
         if (webhookApplication.getApplicationSummary() != null) {
             throw new RecruitException(HttpStatus.CONFLICT, "이미 AI 요약이 생성된 지원서입니다.");
@@ -51,10 +75,59 @@ public class ApplicationSummaryService {
                 ApplicationSummary.builder()
                         .webhookApplication(webhookApplication)
                         .items(items)
+                        .processingStatus(ApplicationSummary.ProcessingStatus.COMPLETED)
+                        .processingStartedAt(java.time.LocalDateTime.now().minusSeconds(30))
+                        .processingCompletedAt(java.time.LocalDateTime.now())
                         .build()
         );
 
         return saved;
+    }
+
+    /**
+     * PENDING 상태의 요약을 실제 AI로 처리
+     */
+    @Transactional
+    public void processAiSummary(ApplicationSummary summary) {
+        if (summary.getProcessingStatus() != ApplicationSummary.ProcessingStatus.PENDING) {
+            log.warn("Attempted to process non-pending summary ID: {}, status: {}", 
+                summary.getId(), summary.getProcessingStatus());
+            return;
+        }
+
+        try {
+            // 처리 시작 표시
+            summary.markAsProcessing();
+            summaryRepository.save(summary);
+
+            // 질문 데이터 변환 (WebhookApplication은 이미 fetch됨)
+            List<ApplicationQuestionDto> questions = convertFormDataWithNumericFilter(
+                summary.getWebhookApplication().getFormData());
+
+            // AI 처리
+            ApplicationSummaryDto summaryDto = processingService.processApplication(questions);
+
+            // 결과 저장 (items 컬렉션이 이미 fetch되어 LazyInitializationException 방지됨)
+            Map<String, String> items = flattenSummary(summaryDto);
+            summary.getItems().clear();
+            summary.getItems().putAll(items);
+            
+            // 완료 처리
+            summary.markAsCompleted();
+            summaryRepository.save(summary);
+
+            log.info("Successfully processed AI summary for application ID: {}", 
+                summary.getWebhookApplication().getId());
+
+        } catch (Exception e) {
+            // 실패 처리
+            String errorMessage = "AI 처리 중 오류 발생: " + e.getMessage();
+            summary.markAsFailed(errorMessage);
+            summaryRepository.save(summary);
+
+            log.error("Failed to process AI summary for application ID: {}", 
+                summary.getId(), e);
+        }
     }
 
     /**
