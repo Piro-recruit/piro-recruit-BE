@@ -17,6 +17,7 @@ import org.springframework.stereotype.Service;
 
 import com.pirogramming.recruit.domain.ai_summary.entity.ApplicationSummary;
 import com.pirogramming.recruit.domain.ai_summary.repository.ApplicationSummaryRepository;
+import com.pirogramming.recruit.domain.googleform.repository.GoogleFormRepository;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -32,6 +33,7 @@ public class AiBatchProcessingService {
     
     private final ApplicationSummaryRepository summaryRepository;
     private final ApplicationSummaryService summaryService;
+    private final GoogleFormRepository googleFormRepository;
     
     private final ScheduledExecutorService scheduler = Executors.newScheduledThreadPool(2);
     private final ScheduledExecutorService batchProcessor = Executors.newScheduledThreadPool(10); // 배치 처리 스레드풀
@@ -93,6 +95,11 @@ public class AiBatchProcessingService {
      */
     public void processPendingBatch() {
         try {
+            // 활성화된 구글 폼이 없으면 스킵 (리쿠르팅 기간이 아님)
+            if (!googleFormRepository.existsByIsActiveTrue()) {
+                log.debug("No active Google Form found, skipping AI batch processing");
+                return;
+            }
             // 1단계: ID만 먼저 조회하여 페이징 적용 (성능 최적화)
             PageRequest pageRequest = PageRequest.of(0, batchSize, Sort.by("createdAt").ascending());
             List<Long> pendingTaskIds = summaryRepository
@@ -148,6 +155,11 @@ public class AiBatchProcessingService {
      */
     public void processFailedRetries() {
         try {
+            // 활성화된 구글 폼이 없으면 스킵 (리쿠르팅 기간이 아님)
+            if (!googleFormRepository.existsByIsActiveTrue()) {
+                log.debug("No active Google Form found, skipping retry processing");
+                return;
+            }
             LocalDateTime retryThreshold = LocalDateTime.now().minusSeconds(retryDelaySeconds);
             List<ApplicationSummary> retryableTasks = summaryRepository
                 .findRetryableFailed(retryThreshold);
@@ -176,6 +188,11 @@ public class AiBatchProcessingService {
      */
     public void recoverTimedOutTasks() {
         try {
+            // 활성화된 구글 폼이 없으면 스킵 (리쿠르팅 기간이 아님)
+            if (!googleFormRepository.existsByIsActiveTrue()) {
+                log.debug("No active Google Form found, skipping timeout recovery");
+                return;
+            }
             LocalDateTime timeoutThreshold = LocalDateTime.now().minusMinutes(5);
             List<ApplicationSummary> timedOutTasks = summaryRepository
                 .findTimedOutProcessing(timeoutThreshold);
