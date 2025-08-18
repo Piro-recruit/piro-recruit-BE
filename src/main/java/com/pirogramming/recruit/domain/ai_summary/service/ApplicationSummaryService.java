@@ -16,6 +16,7 @@ import com.pirogramming.recruit.domain.ai_summary.dto.ApplicationQuestionDto;
 import com.pirogramming.recruit.domain.ai_summary.dto.ApplicationSummaryDto;
 import com.pirogramming.recruit.domain.ai_summary.entity.ApplicationSummary;
 import com.pirogramming.recruit.domain.ai_summary.repository.ApplicationSummaryRepository;
+import com.pirogramming.recruit.domain.ai_summary.util.InputValidationUtil;
 import com.pirogramming.recruit.domain.ai_summary.util.TextSanitizerUtil;
 import com.pirogramming.recruit.global.exception.RecruitException;
 
@@ -139,7 +140,7 @@ public class ApplicationSummaryService {
         
         List<ApplicationQuestionDto> questions = formData.entrySet().stream()
                 .filter(entry -> isNumericPrefixed(entry.getKey())) // 숫자로 시작하는 질문만 필터링
-                .filter(entry -> isValidFormEntry(entry.getKey(), entry.getValue())) // 입력 검증
+                .filter(entry -> InputValidationUtil.isValidFormEntry(entry.getKey(), entry.getValue())) // 입력 검증
                 .sorted((e1, e2) -> compareNumericPrefix(e1.getKey(), e2.getKey())) // 숫자 기준 오름차순 정렬
                 .map(e -> new ApplicationQuestionDto(
                         TextSanitizerUtil.sanitizeInput(e.getKey()), 
@@ -158,34 +159,6 @@ public class ApplicationSummaryService {
         return questions;
     }
 
-    /**
-     * 폼 입력값 유효성 검증 (고도화된 프롬프트 인젝션 방어)
-     */
-    private boolean isValidFormEntry(String key, Object value) {
-        if (key == null || key.trim().isEmpty()) return false;
-        if (value == null) return false;
-        
-        String valueStr = Objects.toString(value, "");
-        
-        // 길이 제한 (DoS 방지) - 각 질문/답변 당
-        if (key.length() > 500 || valueStr.length() > 2000) {
-            return false;
-        }
-        
-        // 빈 값 검사
-        if (key.trim().isEmpty() || valueStr.trim().isEmpty()) {
-            return false;
-        }
-        
-        // 비정상적인 반복 패턴 검사
-        if (TextSanitizerUtil.hasExcessiveRepetition(valueStr)) {
-            return false;
-        }
-        
-        // 다층 프롬프트 인젝션 검사
-        return !TextSanitizerUtil.containsPromptInjectionRisk(key) && 
-               !TextSanitizerUtil.containsPromptInjectionRisk(valueStr);
-    }
     
 
     /**

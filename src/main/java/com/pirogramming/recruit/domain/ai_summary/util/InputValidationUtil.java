@@ -1,6 +1,7 @@
 package com.pirogramming.recruit.domain.ai_summary.util;
 
 import java.util.List;
+import java.util.Objects;
 
 import org.springframework.http.HttpStatus;
 
@@ -80,5 +81,35 @@ public final class InputValidationUtil {
             throw new RecruitException(HttpStatus.BAD_REQUEST, 
                 String.format("%s는 최대 %d개까지 가능합니다.", itemName, maxSize));
         }
+    }
+    
+    /**
+     * 폼 입력값 유효성 검증 (고도화된 프롬프트 인젝션 방어)
+     * ApplicationSummaryService에서 이동
+     */
+    public static boolean isValidFormEntry(String key, Object value) {
+        if (key == null || key.trim().isEmpty()) return false;
+        if (value == null) return false;
+        
+        String valueStr = Objects.toString(value, "");
+        
+        // 길이 제한 (DoS 방지) - 각 질문/답변 당
+        if (key.length() > 500 || valueStr.length() > 2000) {
+            return false;
+        }
+        
+        // 빈 값 검사
+        if (key.trim().isEmpty() || valueStr.trim().isEmpty()) {
+            return false;
+        }
+        
+        // 비정상적인 반복 패턴 검사
+        if (TextSanitizerUtil.hasExcessiveRepetition(valueStr)) {
+            return false;
+        }
+        
+        // 다층 프롬프트 인젝션 검사
+        return !TextSanitizerUtil.containsPromptInjectionRisk(key) && 
+               !TextSanitizerUtil.containsPromptInjectionRisk(valueStr);
     }
 }
