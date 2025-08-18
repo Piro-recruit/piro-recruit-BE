@@ -11,6 +11,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.pirogramming.recruit.domain.ai_summary.dto.ApplicationQuestionDto;
 import com.pirogramming.recruit.domain.ai_summary.dto.ApplicationSummaryDto;
 import com.pirogramming.recruit.domain.ai_summary.entity.ApplicationSummary;
@@ -210,18 +211,18 @@ public class ApplicationSummaryService {
         Map<String, String> map = new LinkedHashMap<>();
         if (dto == null) return map;
 
-        map.put("overallSummary", n(dto.getOverallSummary()));
-        map.put("experience", n(dto.getExperience()));
-        map.put("motivation", n(dto.getMotivation()));
         map.put("scoreOutOf100", String.valueOf(dto.getScoreOutOf100()));
 
-        // 리스트는 줄바꿈으로 합쳐 저장
-        if (dto.getKeyStrengths() != null) {
-            map.put("keyStrengths", String.join("\n", dto.getKeyStrengths()));
+        // 질문별 요약을 JSON 형태로 저장
+        if (dto.getQuestionSummaries() != null) {
+            try {
+                ObjectMapper mapper = new ObjectMapper();
+                map.put("questionSummaries", mapper.writeValueAsString(dto.getQuestionSummaries()));
+            } catch (Exception e) {
+                map.put("questionSummaries", "[]"); // 오류 시 빈 배열
+            }
         }
-        if (dto.getTechnicalSkills() != null) {
-            map.put("technicalSkills", String.join(", ", dto.getTechnicalSkills()));
-        }
+        
         return map;
     }
 

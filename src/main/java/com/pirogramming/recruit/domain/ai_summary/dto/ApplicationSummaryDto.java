@@ -13,21 +13,31 @@ import lombok.NoArgsConstructor;
 @AllArgsConstructor
 public class ApplicationSummaryDto {
     
-    @Schema(description = "지원자의 전반적인 요약", example = "3년차 백엔드 개발자로 Java Spring Boot와 MSA 아키텍처 경험을 보유하고 있습니다. 대용량 트래픽 처리 경험이 있으며 성능 최적화에 강점을 보입니다.")
-    private String overallSummary;
+    @Schema(description = "각 질문별 AI 요약 결과 목록")
+    private List<QuestionSummaryDto> questionSummaries;
     
-    @Schema(description = "핵심 강점 목록", example = "[\"대용량 트래픽 처리 경험\", \"성능 최적화 능력\", \"MSA 아키텍처 구축 경험\"]")
-    private List<String> keyStrengths;
-    
-    @Schema(description = "기술 스택 목록", example = "[\"Java\", \"Spring Boot\", \"Docker\", \"Redis\", \"PostgreSQL\", \"AWS\"]")
-    private List<String> technicalSkills;
-    
-    @Schema(description = "경력 요약", example = "ABC회사에서 전자상거래 플랫폼 개발 및 결제 시스템 구축, XYZ스타트업에서 관리자 시스템 개발 경험이 있습니다.")
-    private String experience;
-    
-    @Schema(description = "지원동기 요약", example = "대용량 트래픽 처리와 MSA 환경 경험을 바탕으로 팀의 기술적 성장에 기여하고 싶습니다.")
-    private String motivation;
-    
-    @Schema(description = "100점 만점 평가 점수", example = "85", minimum = "0", maximum = "100")
+    @Schema(description = "100점 만점 평가 점수", example = "78", minimum = "0", maximum = "100")
     private int scoreOutOf100;
+    
+    // 기존 호환성을 위한 생성자 (fallback 용도)
+    public ApplicationSummaryDto(String overallSummary, List<String> keyStrengths, 
+                                List<String> technicalSkills, String experience, 
+                                String motivation, int scoreOutOf100) {
+        this.scoreOutOf100 = scoreOutOf100;
+        // 기존 데이터를 questionSummaries로 변환하지 않고 null로 유지
+        this.questionSummaries = null;
+    }
+    
+    @Schema(description = "개별 질문에 대한 AI 요약")
+    @Data
+    @NoArgsConstructor
+    @AllArgsConstructor
+    public static class QuestionSummaryDto {
+        
+        @Schema(description = "질문 내용", example = "1. 본인의 가치관, 성격 등을 포함한 자기소개와 피로그래밍에 지원한 동기 및 목표를 적어주세요")
+        private String question;
+        
+        @Schema(description = "AI 요약 결과", example = "컴퓨터공학 전공 학생으로 웹 개발에 대한 관심이 높고, 피로그래밍을 통한 성장 의지를 보여줍니다.")
+        private String aiSummary;
+    }
 }

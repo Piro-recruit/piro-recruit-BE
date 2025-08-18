@@ -78,15 +78,23 @@ public class ApplicationProcessingService {
 			Application content:
 			%s
 			
-			Please respond in exactly this JSON format (all values must be in Korean):
+			Please respond in exactly this JSON format:
 			{
-			  "overallSummary": "Overall summary of the applicant (2-3 sentences in Korean)",
-			  "keyStrengths": ["Key strength 1 in Korean", "Key strength 2 in Korean", "Key strength 3 in Korean"],
-			  "technicalSkills": ["Technical skill 1", "Technical skill 2", "Technical skill 3"],
-			  "experience": "Experience summary including projects, studies, self-learning (1-2 sentences in Korean)",
-			  "motivation": "Motivation summary (1 sentence in Korean)",
+			  "questionSummaries": [
+			    {
+			      "question": "original question text",
+			      "aiSummary": "Korean summary of this specific question and answer"
+			    },
+			    // ... repeat for each question
+			  ],
 			  "scoreOutOf100": evaluation_score_number_between_0_and_100
 			}
+			
+			For each question-answer pair:
+			- Provide a concise Korean summary (1-2 sentences) focusing on key points
+			- Highlight relevant skills, experiences, or attitudes shown in that specific answer
+			- Keep the original question text exactly as provided
+			- Do NOT include the original answer text in the response
 			
 			Evaluation Criteria (100 points total):
 			1. Passion & Learning Attitude (40 points):
@@ -159,14 +167,10 @@ public class ApplicationProcessingService {
 	 * 폴백 요약 생성 (민감정보 로깅 방지)
 	 */
 	private ApplicationSummaryDto createFallbackSummary() {
-		return new ApplicationSummaryDto(
-			"AI 분석 중 오류가 발생했습니다. 수동 검토가 필요합니다.",
-			List.of("분석 오류", "수동 검토 필요"),
-			List.of("분석 실패"),
-			"경험 분석을 완료할 수 없습니다.",
-			"동기 분석을 완료할 수 없습니다.",
-			0
-		);
+		ApplicationSummaryDto fallback = new ApplicationSummaryDto();
+		fallback.setQuestionSummaries(List.of());
+		fallback.setScoreOutOf100(0);
+		return fallback;
 	}
 	
 	/**
@@ -183,22 +187,35 @@ public class ApplicationProcessingService {
 			score = Math.max(0, Math.min(100, score));
 		}
 		
-		// 텍스트 필드 정제
-		String cleanOverallSummary = sanitizeText(summary.getOverallSummary());
-		String cleanExperience = sanitizeText(summary.getExperience());
-		String cleanMotivation = sanitizeText(summary.getMotivation());
+		// 질문별 요약 검증 및 정제
+		List<ApplicationSummaryDto.QuestionSummaryDto> cleanQuestionSummaries = null;
+		if (summary.getQuestionSummaries() != null) {
+			cleanQuestionSummaries = summary.getQuestionSummaries().stream()
+				.filter(Objects::nonNull)
+				.map(this::sanitizeQuestionSummary)
+				.collect(Collectors.toList());
+		}
 		
-		// 리스트 필드 정제
-		List<String> cleanKeyStrengths = sanitizeList(summary.getKeyStrengths());
-		List<String> cleanTechnicalSkills = sanitizeList(summary.getTechnicalSkills());
+		ApplicationSummaryDto result = new ApplicationSummaryDto();
+		result.setQuestionSummaries(cleanQuestionSummaries != null ? cleanQuestionSummaries : List.of());
+		result.setScoreOutOf100(score);
+		return result;
+	}
+	
+	/**
+	 * 개별 질문 요약 정제
+	 */
+	private ApplicationSummaryDto.QuestionSummaryDto sanitizeQuestionSummary(ApplicationSummaryDto.QuestionSummaryDto questionSummary) {
+		if (questionSummary == null) {
+			return null;
+		}
 		
-		return new ApplicationSummaryDto(
-			cleanOverallSummary,
-			cleanKeyStrengths,
-			cleanTechnicalSkills,
-			cleanExperience,
-			cleanMotivation,
-			score
+		String cleanQuestion = sanitizeText(questionSummary.getQuestion());
+		String cleanAiSummary = sanitizeText(questionSummary.getAiSummary());
+		
+		return new ApplicationSummaryDto.QuestionSummaryDto(
+			cleanQuestion,
+			cleanAiSummary
 		);
 	}
 	
@@ -270,7 +287,7 @@ public class ApplicationProcessingService {
 		String jsonCandidate = response.substring(startIndex, endIndex + 1);
 		
 		// 기본적인 JSON 구조 검증
-		if (!jsonCandidate.contains("overallSummary") || 
+		if (!jsonCandidate.contains("questionSummaries") || 
 			!jsonCandidate.contains("scoreOutOf100")) {
 			throw new IllegalArgumentException("필수 필드가 누락된 JSON입니다");
 		}
