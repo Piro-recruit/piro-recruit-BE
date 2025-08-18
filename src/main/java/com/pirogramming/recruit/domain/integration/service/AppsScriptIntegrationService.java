@@ -218,24 +218,69 @@ public class AppsScriptIntegrationService {
 
     // formData에서 전화번호 추출
     // 다양한 필드명으로 전화번호를 검색
+//    private String extractPhoneFromFormData(WebhookApplication app) {
+//        Object phone = app.getFormDataValue("전화번호");
+//        if (phone == null) phone = app.getFormDataValue("연락처");
+//        if (phone == null) phone = app.getFormDataValue("휴대폰번호");
+//        if (phone == null) phone = app.getFormDataValue("phone");
+//        if (phone == null) phone = app.getFormDataValue("mobile");
+//        if (phone == null) phone = app.getFormDataValue("핸드폰");
+//        if (phone == null) phone = app.getFormDataValue("휴대폰");
+//        if (phone == null) phone = app.getFormDataValue("연락처 번호");
+//
+//        String phoneStr = phone != null ? phone.toString().trim() : "";
+//
+//        // 전화번호 형식 정리 (하이픈 추가)
+//        if (!phoneStr.isEmpty() && !phoneStr.contains("-")) {
+//            phoneStr = formatPhoneNumber(phoneStr);
+//        }
+//
+//        return phoneStr;
+//    }
+
     private String extractPhoneFromFormData(WebhookApplication app) {
+        // 1) 엔티티 필드 우선 (WebhookApplication.phoneNumber)
+        String direct = app.getPhoneNumber();
+        if (direct != null && !(direct = direct.trim()).isEmpty()) {
+            if (!direct.contains("-")) {
+                direct = formatPhoneNumber(direct);
+            }
+            return direct;
+        }
+
+        // 2) formData의 흔한 키들 탐색
         Object phone = app.getFormDataValue("전화번호");
         if (phone == null) phone = app.getFormDataValue("연락처");
         if (phone == null) phone = app.getFormDataValue("휴대폰번호");
-        if (phone == null) phone = app.getFormDataValue("phone");
-        if (phone == null) phone = app.getFormDataValue("mobile");
+        if (phone == null) phone = app.getFormDataValue("핸드폰 번호");
+        if (phone == null) phone = app.getFormDataValue("휴대폰 번호");
+        if (phone == null) phone = app.getFormDataValue("연락처 번호");
         if (phone == null) phone = app.getFormDataValue("핸드폰");
         if (phone == null) phone = app.getFormDataValue("휴대폰");
-        if (phone == null) phone = app.getFormDataValue("연락처 번호");
+        if (phone == null) phone = app.getFormDataValue("phone");
+        if (phone == null) phone = app.getFormDataValue("mobile");
 
         String phoneStr = phone != null ? phone.toString().trim() : "";
 
-        // 전화번호 형식 정리 (하이픈 추가)
-        if (!phoneStr.isEmpty() && !phoneStr.contains("-")) {
+        // 3) 여전히 비어있다면 formData 전체에서 전화번호 패턴(10~11자리) 탐색
+        if ((phoneStr == null || phoneStr.isEmpty()) && app.getFormData() != null) {
+            for (Map.Entry<String, Object> entry : app.getFormData().entrySet()) {
+                if (entry.getValue() == null) continue;
+                String v = entry.getValue().toString();
+                String digits = v.replaceAll("[^0-9]", "");
+                if (digits.length() == 10 || digits.length() == 11) {
+                    phoneStr = v.trim();
+                    break;
+                }
+            }
+        }
+
+        // 4) 전화번호 형식 정리 (하이픈 추가)
+        if (phoneStr != null && !phoneStr.isEmpty() && !phoneStr.contains("-")) {
             phoneStr = formatPhoneNumber(phoneStr);
         }
 
-        return phoneStr;
+        return phoneStr == null ? "" : phoneStr;
     }
 
     // 전공 여부 판단 (0:비전공, 1:전공, 2:복수전공)
