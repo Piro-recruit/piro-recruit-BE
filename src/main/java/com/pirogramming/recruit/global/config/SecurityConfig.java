@@ -32,6 +32,7 @@ public class SecurityConfig {
 
 	private final JwtTokenProvider jwtTokenProvider;
 	private final CustomUserDetailsService customUserDetailsService;
+	private final WebhookTokenFilter webhookTokenFilter;
 
 	@Bean
 	public AuthenticationManager authenticationManager(AuthenticationConfiguration config) throws Exception {
