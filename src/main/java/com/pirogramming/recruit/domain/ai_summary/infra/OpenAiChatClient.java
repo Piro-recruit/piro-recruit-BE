@@ -12,6 +12,7 @@ import org.springframework.web.reactive.function.client.WebClient;
 import org.springframework.web.reactive.function.client.WebClientResponseException;
 
 import com.pirogramming.recruit.domain.ai_summary.port.LlmClient;
+import com.pirogramming.recruit.domain.ai_summary.util.FallbackResponseUtil;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -38,7 +39,7 @@ public class OpenAiChatClient implements LlmClient {
 			return chatAsync(prompt).get();
 		} catch (Exception e) {
 			log.error("Synchronous chat call failed: {}", e.getClass().getSimpleName());
-			return createFallbackResponse();
+			return FallbackResponseUtil.createFallbackJson();
 		}
 	}
 	
@@ -70,18 +71,18 @@ public class OpenAiChatClient implements LlmClient {
 						handleAsyncError(error);
 					})
 					.map(this::extractContentFromResponse)
-					.onErrorReturn(createFallbackResponse())
+					.onErrorReturn(FallbackResponseUtil.createFallbackJson())
 					.block(); // CompletableFuture 내부에서 block() 사용
 					
 			} catch (InterruptedException e) {
 				Thread.currentThread().interrupt();
 				failedRequests++;
 				log.error("OpenAI API call interrupted");
-				return createFallbackResponse();
+				return FallbackResponseUtil.createFallbackJson();
 			} catch (Exception e) {
 				failedRequests++;
 				log.error("OpenAI API call failed with unexpected error", e);
-				return createFallbackResponse();
+				return FallbackResponseUtil.createFallbackJson();
 			} finally {
 				openAiSemaphore.release();
 				log.debug("Released OpenAI API semaphore. Available permits: {}", openAiSemaphore.availablePermits());
@@ -206,13 +207,4 @@ public class OpenAiChatClient implements LlmClient {
 		return sanitized;
 	}
 	
-	private String createFallbackResponse() {
-		return """
-			{
-			  "questionSummaries": [],
-			  "scoreOutOf100": 0,
-			  "scoreReason": "AI 분석 서비스 오류로 인해 평가를 완료할 수 없습니다. 수동 검토가 필요합니다."
-			}
-			""";
-	}
 }

@@ -13,6 +13,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.pirogramming.recruit.domain.ai_summary.dto.ApplicationQuestionDto;
 import com.pirogramming.recruit.domain.ai_summary.dto.ApplicationSummaryDto;
 import com.pirogramming.recruit.domain.ai_summary.port.LlmClient;
+import com.pirogramming.recruit.domain.ai_summary.util.FallbackResponseUtil;
 import com.pirogramming.recruit.domain.ai_summary.util.TextSanitizerUtil;
 
 import lombok.RequiredArgsConstructor;
@@ -97,7 +98,7 @@ public class ApplicationProcessingService {
 			})
 			.exceptionally(throwable -> {
 				log.error("Async application processing failed", throwable);
-				return createFallbackSummary();
+				return FallbackResponseUtil.createFallbackSummary();
 			});
 	}
 	
@@ -243,12 +244,12 @@ public class ApplicationProcessingService {
 		try {
 			// 입력 검증
 			if (jsonResponse == null || jsonResponse.trim().isEmpty()) {
-				return createFallbackSummary();
+				return FallbackResponseUtil.createFallbackSummary();
 			}
 			
 			// 길이 제한 (DoS 방지)
 			if (jsonResponse.length() > 50000) {
-				return createFallbackSummary();
+				return FallbackResponseUtil.createFallbackSummary();
 			}
 			
 			// JSON 응답에서 실제 JSON 부분만 안전하게 추출
@@ -259,32 +260,22 @@ public class ApplicationProcessingService {
 			return validateAndSanitizeSummary(result);
 			
 		} catch (JsonProcessingException e) {
-			return createFallbackSummary();
+			return FallbackResponseUtil.createFallbackSummary();
 		} catch (IllegalArgumentException e) {
-			return createFallbackSummary();
+			return FallbackResponseUtil.createFallbackSummary();
 		} catch (Exception e) {
 			// 예상치 못한 오류는 민감정보 로깅 방지
-			return createFallbackSummary();
+			return FallbackResponseUtil.createFallbackSummary();
 		}
 	}
 	
-	/**
-	 * 폴백 요약 생성 (민감정보 로깅 방지)
-	 */
-	private ApplicationSummaryDto createFallbackSummary() {
-		ApplicationSummaryDto fallback = new ApplicationSummaryDto();
-		fallback.setQuestionSummaries(List.of());
-		fallback.setScoreOutOf100(0);
-		fallback.setScoreReason("AI 분석 중 오류가 발생하여 점수 근거를 제공할 수 없습니다.");
-		return fallback;
-	}
 	
 	/**
 	 * 파싱된 요약 결과 검증 및 정제 (강화된 버전)
 	 */
 	private ApplicationSummaryDto validateAndSanitizeSummary(ApplicationSummaryDto summary) {
 		if (summary == null) {
-			return createFallbackSummary();
+			return FallbackResponseUtil.createFallbackSummary();
 		}
 		
 		// 1. 점수 범위 및 일관성 검증
