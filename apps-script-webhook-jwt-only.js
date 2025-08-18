@@ -256,8 +256,9 @@ function onFormSubmit(e) {
     var timestamp = formResponse.getTimestamp();
     var email = formResponse.getRespondentEmail();
 
-    // 응답 데이터를 객체로 변환
+    // 응답 데이터를 객체로 변환 (순서 보장)
     var formData = {};
+    var formDataOrder = []; // 질문 순서 저장
 
     for (var i = 0; i < itemResponses.length; i++) {
       var itemResponse = itemResponses[i];
@@ -267,6 +268,7 @@ function onFormSubmit(e) {
       // 빈 값 처리
       if (answer !== null && answer !== undefined && answer !== '') {
         formData[question] = answer;
+        formDataOrder.push(question); // 순서 정보 저장
       }
     }
 
@@ -284,7 +286,7 @@ function onFormSubmit(e) {
     console.log('👤 지원자:', applicantName, '(' + applicantEmail + ')');
     console.log('🏫 학교정보:', school, department, grade, major);
 
-    // 서버 전송용 데이터 구성 (백엔드 DTO 구조에 맞춤)
+    // 서버 전송용 데이터 구성 (백엔드 DTO 구조에 맞춤 + 순서 정보 포함)
     var webhookPayload = {
       formId: CONFIG.FORM_ID,
       applicantName: applicantName,
@@ -296,7 +298,8 @@ function onFormSubmit(e) {
       grade: grade,
       major: major,
       phoneNumber: phoneNumber,
-      formData: formData
+      formData: formData,
+      formDataOrder: formDataOrder // 📝 질문 순서 정보 추가
     };
 
     console.log('📦 웹훅 페이로드 준비 완료');
@@ -450,6 +453,20 @@ function testRealApplicationSubmit() {
     return { success: false, error: '설정값 없음' };
   }
 
+  var testFormData = {
+    '이름': '테스트 지원자',
+    '이메일 주소': 'test.jwt.applicant@example.com',
+    '대학교': '테스트 대학교',
+    '학과': '컴퓨터공학과',
+    '전공 여부': '주전공',
+    '학년': '3학년',
+    '전화번호': '010-1234-5678',
+    '자기소개': 'JWT 인증 Apps Script 테스트용 자기소개서입니다.',
+    '협업경험': 'JWT 테스트용 협업 경험입니다.',
+    '겨울방학 계획': 'JWT 테스트용 겨울방학 계획입니다.',
+    '코딩테스트': '완료'
+  };
+
   var testPayload = {
     formId: CONFIG.FORM_ID,
     applicantName: '테스트 지원자',
@@ -461,19 +478,8 @@ function testRealApplicationSubmit() {
     grade: '3학년',
     major: '주전공',
     phoneNumber: '010-1234-5678',
-    formData: {
-      '이름': '테스트 지원자',
-      '이메일 주소': 'test.jwt.applicant@example.com',
-      '대학교': '테스트 대학교',
-      '학과': '컴퓨터공학과',
-      '전공 여부': '주전공',
-      '학년': '3학년',
-      '전화번호': '010-1234-5678',
-      '자기소개': 'JWT 인증 Apps Script 테스트용 자기소개서입니다.',
-      '협업경험': 'JWT 테스트용 협업 경험입니다.',
-      '겨울방학 계획': 'JWT 테스트용 겨울방학 계획입니다.',
-      '코딩테스트': '완료'
-    }
+    formData: testFormData,
+    formDataOrder: Object.keys(testFormData) // 📝 동적으로 순서 생성
   };
 
   var result = sendToWebhook(testPayload, CONFIG.WEBHOOK_URL);

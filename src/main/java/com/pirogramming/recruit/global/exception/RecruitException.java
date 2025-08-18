@@ -24,4 +24,11 @@ public class RecruitException extends RuntimeException {
 		this.status = status;
 		this.errorCode = errorCode;
 	}
+
+	// 커스텀 메시지와 ErrorCode를 함께 사용하는 생성자
+	public RecruitException(HttpStatus status, ErrorCode errorCode, String customMessage) {
+		super(customMessage);
+		this.status = status;
+		this.errorCode = errorCode;
+	}
 }

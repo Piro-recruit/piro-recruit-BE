@@ -1,14 +1,18 @@
 package com.pirogramming.recruit.domain.webhook.entity;
 
 import java.time.LocalDateTime;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Map;
 
 import org.hibernate.annotations.JdbcTypeCode;
 import org.hibernate.type.SqlTypes;
 
+import com.pirogramming.recruit.domain.evaluation.entity.Evaluation;
 import com.pirogramming.recruit.domain.googleform.entity.GoogleForm;
 import com.pirogramming.recruit.global.entity.BaseTimeEntity;
 
+import jakarta.persistence.CascadeType;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.EnumType;
@@ -19,6 +23,7 @@ import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.JoinColumn;
 import jakarta.persistence.ManyToOne;
+import jakarta.persistence.OneToMany;
 import jakarta.persistence.Table;
 import jakarta.persistence.UniqueConstraint;
 import lombok.AccessLevel;
@@ -99,6 +104,17 @@ public class WebhookApplication extends BaseTimeEntity {
     @Column(nullable = false)
     private PassStatus passStatus = PassStatus.PENDING; // 합격 상태
 
+    // 평가 관련 필드들
+    @Column(name = "average_score")
+    private Double averageScore; // 평균 점수
+
+    @Column(name = "evaluation_count", nullable = false)
+    private Integer evaluationCount = 0; // 평가 개수
+
+    // 연관된 평가들 (지원서 삭제 시 함께 삭제)
+    @OneToMany(mappedBy = "application", cascade = CascadeType.ALL, orphanRemoval = true)
+    private List<Evaluation> evaluations = new ArrayList<>();
+
     @Builder
     public WebhookApplication(GoogleForm googleForm, String applicantName, String applicantEmail,
                               String formResponseId, LocalDateTime submissionTimestamp, Map<String, Object> formData,
@@ -165,6 +181,22 @@ public class WebhookApplication extends BaseTimeEntity {
 
     public void resetPassStatus() {
         this.passStatus = PassStatus.PENDING;
+    }
+
+    // 평가 점수 업데이트 메서드들
+    public void updateEvaluationStatistics(Double newAverageScore, Integer newEvaluationCount) {
+        this.averageScore = newAverageScore;
+        this.evaluationCount = newEvaluationCount;
+    }
+
+    public void incrementEvaluationCount() {
+        this.evaluationCount = this.evaluationCount + 1;
+    }
+
+    public void decrementEvaluationCount() {
+        if (this.evaluationCount > 0) {
+            this.evaluationCount = this.evaluationCount - 1;
+        }
     }
 
     // 웹훅 처리 상태 enum
