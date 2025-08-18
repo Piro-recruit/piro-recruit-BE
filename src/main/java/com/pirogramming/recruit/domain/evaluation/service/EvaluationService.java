@@ -13,6 +13,7 @@ import com.pirogramming.recruit.domain.evaluation.dto.EvaluationRequest;
 import com.pirogramming.recruit.domain.evaluation.dto.EvaluationResponse;
 import com.pirogramming.recruit.domain.evaluation.dto.EvaluationUpdateRequest;
 import com.pirogramming.recruit.domain.evaluation.entity.Evaluation;
+import com.pirogramming.recruit.domain.evaluation.exception.EvaluationException;
 import com.pirogramming.recruit.domain.evaluation.repository.EvaluationRepository;
 import com.pirogramming.recruit.domain.webhook.entity.WebhookApplication;
 import com.pirogramming.recruit.domain.webhook.repository.WebhookApplicationRepository;
@@ -31,13 +32,13 @@ public class EvaluationService {
     @Transactional
     public EvaluationResponse createEvaluation(EvaluationRequest request, Long evaluatorId) {
         WebhookApplication application = webhookApplicationRepository.findById(request.getApplicationId())
-            .orElseThrow(() -> new IllegalArgumentException("지원서를 찾을 수 없습니다: " + request.getApplicationId()));
+            .orElseThrow(() -> EvaluationException.applicationNotFound(request.getApplicationId()));
 
         Admin evaluator = adminRepository.findById(evaluatorId)
-            .orElseThrow(() -> new IllegalArgumentException("평가자를 찾을 수 없습니다: " + evaluatorId));
+            .orElseThrow(() -> EvaluationException.evaluatorNotFound(evaluatorId));
 
         if (evaluationRepository.existsByApplicationIdAndEvaluatorId(request.getApplicationId(), evaluatorId)) {
-            throw new IllegalStateException("이미 해당 지원서에 대한 평가를 등록하셨습니다");
+            throw EvaluationException.alreadyExists(request.getApplicationId(), evaluator.getIdentifierName());
         }
 
         Evaluation evaluation = Evaluation.builder()
@@ -56,10 +57,10 @@ public class EvaluationService {
     @Transactional
     public EvaluationResponse updateEvaluation(Long evaluationId, EvaluationUpdateRequest request, Long evaluatorId) {
         Evaluation evaluation = evaluationRepository.findById(evaluationId)
-            .orElseThrow(() -> new IllegalArgumentException("평가를 찾을 수 없습니다: " + evaluationId));
+            .orElseThrow(() -> EvaluationException.notFound(evaluationId));
 
         if (!evaluation.getEvaluatorId().equals(evaluatorId)) {
-            throw new IllegalStateException("본인이 작성한 평가만 수정할 수 있습니다");
+            throw EvaluationException.permissionDenied(evaluationId, evaluation.getEvaluatorName());
         }
 
         evaluation.updateEvaluation(request.getScore(), request.getComment());
@@ -70,10 +71,10 @@ public class EvaluationService {
     @Transactional
     public void deleteEvaluation(Long evaluationId, Long evaluatorId) {
         Evaluation evaluation = evaluationRepository.findById(evaluationId)
-            .orElseThrow(() -> new IllegalArgumentException("평가를 찾을 수 없습니다: " + evaluationId));
+            .orElseThrow(() -> EvaluationException.notFound(evaluationId));
 
         if (!evaluation.getEvaluatorId().equals(evaluatorId)) {
-            throw new IllegalStateException("본인이 작성한 평가만 삭제할 수 있습니다");
+            throw EvaluationException.permissionDenied(evaluationId, evaluation.getEvaluatorName());
         }
 
         Long applicationId = evaluation.getApplication().getId();
@@ -83,7 +84,7 @@ public class EvaluationService {
 
     public EvaluationResponse getEvaluation(Long evaluationId) {
         Evaluation evaluation = evaluationRepository.findById(evaluationId)
-            .orElseThrow(() -> new IllegalArgumentException("평가를 찾을 수 없습니다: " + evaluationId));
+            .orElseThrow(() -> EvaluationException.notFound(evaluationId));
 
         return new EvaluationResponse(evaluation);
     }
@@ -104,7 +105,7 @@ public class EvaluationService {
 
     public ApplicationEvaluationSummaryResponse getApplicationEvaluationSummary(Long applicationId) {
         WebhookApplication application = webhookApplicationRepository.findById(applicationId)
-            .orElseThrow(() -> new IllegalArgumentException("지원서를 찾을 수 없습니다: " + applicationId));
+            .orElseThrow(() -> EvaluationException.applicationNotFound(applicationId));
 
         List<EvaluationResponse> evaluations = getEvaluationsByApplication(applicationId);
 
@@ -124,7 +125,7 @@ public class EvaluationService {
 
     private void updateApplicationAverageScore(Long applicationId) {
         WebhookApplication application = webhookApplicationRepository.findById(applicationId)
-            .orElseThrow(() -> new IllegalArgumentException("지원서를 찾을 수 없습니다: " + applicationId));
+            .orElseThrow(() -> EvaluationException.applicationNotFound(applicationId));
 
         Double averageScore = evaluationRepository.findAverageScoreByApplicationId(applicationId);
         Long evaluationCount = evaluationRepository.countByApplicationId(applicationId);

@@ -41,7 +41,9 @@ public class EvaluationController {
             @AuthenticationPrincipal CustomUserDetails userDetails) {
         
         EvaluationResponse response = evaluationService.createEvaluation(request, userDetails.getId());
-        return ResponseEntity.ok(ApiRes.success(response, "평가가 성공적으로 생성되었습니다"));
+        return ResponseEntity.ok(ApiRes.success(response, 
+            String.format("'%s' 지원자에 대한 평가가 성공적으로 등록되었습니다. (점수: %d점)", 
+                response.getApplicantName(), response.getScore())));
     }
 
     @PutMapping("/{evaluationId}")
@@ -52,7 +54,9 @@ public class EvaluationController {
             @AuthenticationPrincipal CustomUserDetails userDetails) {
         
         EvaluationResponse response = evaluationService.updateEvaluation(evaluationId, request, userDetails.getId());
-        return ResponseEntity.ok(ApiRes.success(response, "평가가 성공적으로 수정되었습니다"));
+        return ResponseEntity.ok(ApiRes.success(response, 
+            String.format("'%s' 지원자에 대한 평가가 성공적으로 수정되었습니다. (변경된 점수: %d점)", 
+                response.getApplicantName(), response.getScore())));
     }
 
     @DeleteMapping("/{evaluationId}")
@@ -62,7 +66,8 @@ public class EvaluationController {
             @AuthenticationPrincipal CustomUserDetails userDetails) {
         
         evaluationService.deleteEvaluation(evaluationId, userDetails.getId());
-        return ResponseEntity.ok(ApiRes.success(null, "평가가 성공적으로 삭제되었습니다"));
+        return ResponseEntity.ok(ApiRes.success(null, 
+            String.format("평가 ID %d가 성공적으로 삭제되었습니다.", evaluationId)));
     }
 
     @GetMapping("/{evaluationId}")

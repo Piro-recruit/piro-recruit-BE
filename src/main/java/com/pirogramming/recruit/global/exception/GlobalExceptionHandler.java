@@ -11,6 +11,7 @@ import org.springframework.web.bind.annotation.RestControllerAdvice;
 
 import com.pirogramming.recruit.global.exception.code.ErrorCode;
 import com.pirogramming.recruit.global.exception.entity_exception.MemberNotFoundException;
+import com.pirogramming.recruit.domain.evaluation.exception.EvaluationException;
 
 import jakarta.persistence.EntityNotFoundException;
 import lombok.extern.slf4j.Slf4j;
@@ -65,6 +66,13 @@ public class GlobalExceptionHandler {
 		log.warn("잘못된 요청 파라미터: {}", e.getMessage());
 		return ResponseEntity.status(HttpStatus.BAD_REQUEST)
 			.body(ApiRes.failure(HttpStatus.BAD_REQUEST, e.getMessage(), ErrorCode.INVALID_ARGUMENT));
+	}
+
+	@ExceptionHandler(EvaluationException.class)
+	public ResponseEntity<ApiRes<Void>> handleEvaluationException(EvaluationException e) {
+		log.warn("평가 관련 오류: {}", e.getMessage());
+		return ResponseEntity.status(e.getStatus())
+			.body(ApiRes.failure(e.getStatus(), e.getMessage(), e.getErrorCode()));
 	}
 
 }
