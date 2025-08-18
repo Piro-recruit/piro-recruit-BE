@@ -1,11 +1,16 @@
 package com.pirogramming.recruit.domain.googleform.entity;
 
 import com.pirogramming.recruit.global.entity.BaseTimeEntity;
+import com.pirogramming.recruit.domain.webhook.entity.WebhookApplication;
 import jakarta.persistence.*;
 import lombok.AccessLevel;
 import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
+
+import java.time.LocalDateTime;
+import java.util.ArrayList;
+import java.util.List;
 
 @Entity
 @Table(name = "google_forms")
@@ -35,13 +40,29 @@ public class GoogleForm extends BaseTimeEntity {
     @Column(columnDefinition = "TEXT")
     private String description; // 폼 설명
 
+    @Column
+    private LocalDateTime recruitingStartDate; // 리쿠르팅 시작 날짜
+
+    @Column
+    private LocalDateTime recruitingEndDate; // 리쿠르팅 종료 날짜
+
+    @Column(nullable = false)
+    private Integer generation; // 기수 (23, 24, 25기 등)
+
+    // 연관된 지원서들 (구글 폼 삭제 시 함께 삭제)
+    @OneToMany(mappedBy = "googleForm", cascade = CascadeType.ALL, orphanRemoval = true)
+    private List<WebhookApplication> applications = new ArrayList<>();
+
     @Builder
-    public GoogleForm(String formId, String title, String formUrl, String sheetUrl, String description) {
+    public GoogleForm(String formId, String title, String formUrl, String sheetUrl, String description, Integer generation, LocalDateTime recruitingStartDate, LocalDateTime recruitingEndDate) {
         this.formId = formId;
         this.title = title;
         this.formUrl = formUrl;
         this.sheetUrl = sheetUrl;
         this.description = description;
+        this.recruitingStartDate = recruitingStartDate;
+        this.recruitingEndDate = recruitingEndDate;
+        this.generation = generation;
         this.isActive = false;
     }
 
@@ -67,6 +88,14 @@ public class GoogleForm extends BaseTimeEntity {
             validateUrl(newUrl, "시트 URL");
         }
         this.sheetUrl = newUrl;
+    }
+
+    // 기수 업데이트
+    public void updateGeneration(Integer newGeneration) {
+        if (newGeneration == null || newGeneration <= 0) {
+            throw new IllegalArgumentException("기수는 1 이상의 양수여야 합니다");
+        }
+        this.generation = newGeneration;
     }
 
     // URL 유효성 검증

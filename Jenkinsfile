@@ -8,7 +8,7 @@ pipeline {
         DOCKERHUB_CREDENTIALS = credentials('dockerhub-credentials')
 
         // 배포 서버 정보
-        APP_SERVER = '34.64.41.136'
+        APP_SERVER = credentials('APP_SERVER_IP')
         APP_USER = 'ubuntu'
 
         // 애플리케이션 포트 (수정됨)
@@ -16,7 +16,7 @@ pipeline {
         GREEN_PORT = '8082'
 
         // 데이터베이스 정보
-        DB_HOST = '34.64.113.7'
+        DB_HOST = credentials('DB_HOST_IP')
         DB_NAME = 'app_user'
         DB_USERNAME = credentials('DB_USERNAME')
         DB_PASSWORD = credentials('DB_PASSWORD')
@@ -25,6 +25,9 @@ pipeline {
         OPENAI_API_KEY = credentials('OPENAI_API_KEY')
         STMP_USER_ID = credentials('STMP_USER_ID')
         STMP_PASSWORD = credentials('STMP_PASSWORD')
+        JWT_SECRET = credentials('JWT_SECRET')
+        ROOT_ADMIN_LOGIN_CODE = credentials('ROOT_ADMIN_LOGIN_CODE')
+        WEBHOOK_API_KEY = credentials('WEBHOOK_API_KEY')
     }
 
     stages {
@@ -177,13 +180,14 @@ pipeline {
                                     -e SPRING_DATASOURCE_URL=jdbc:postgresql://${DB_HOST}:5432/${DB_NAME} \\
                                     -e SPRING_DATASOURCE_USERNAME=${DB_USERNAME} \\
                                     -e SPRING_DATASOURCE_PASSWORD=${DB_PASSWORD} \\
-                                    -e SPRING_JPA_HIBERNATE_DDL_AUTO=validate \\
-                                    -e SPRING_JPA_SHOW_SQL=false \\
                                     -e SPRING_PROFILES_ACTIVE=prod \\
-                                    -e LOGGING_LEVEL_ROOT=INFO \\
                                     -e OPENAI_API_KEY=${OPENAI_API_KEY} \\
                                     -e STMP_USER_ID=${STMP_USER_ID} \\
                                     -e STMP_PASSWORD=${STMP_PASSWORD} \\
+                                    -e JWT_SECRET=${JWT_SECRET} \\
+                                    -e ROOT_ADMIN_LOGIN_CODE=${ROOT_ADMIN_LOGIN_CODE} \\
+                                    -e WEBHOOK_API_KEY=${WEBHOOK_API_KEY} \\
+                                    -e SPRING_JPA_HIBERNATE_DDL_AUTO=update \\
                                     -e JAVA_OPTS="-Xmx256m -XX:+UseG1GC" \\
                                     ${DOCKER_IMAGE}:${DOCKER_TAG}
 
@@ -262,20 +266,41 @@ pipeline {
                         error "❌ 헬스체크 실패: ${maxRetries}번 시도 후에도 응답 없음"
                     }
 
-                    // Nginx 설정 업데이트 (app 파일 사용 - 핵심 수정!)
+                    // Nginx 설정 업데이트 (app 파일 사용 - 안전한 방법)
                     echo "🔄 Nginx 트래픽 전환 중..."
                     sshagent(['app-server-ssh']) {
                         sh """
                             ssh -o StrictHostKeyChecking=no ${APP_USER}@${APP_SERVER} '
-                                # Nginx app 설정 파일 업데이트
-                                sudo tee /etc/nginx/sites-available/app > /dev/null <<EOF
+                                # Nginx 설정 파일 생성
+                                cat > /tmp/nginx-app.conf << "NGINX_EOF"
 upstream app_backend {
     server localhost:${deployPort};
 }
 
 server {
     listen 80;
-    server_name _;
+    server_name api.piro-recruiting.kro.kr _;
+    return 301 https://\$server_name\$request_uri;
+}
+
+server {
+    listen 443 ssl http2;
+    server_name api.piro-recruiting.kro.kr _;
+
+    ssl_certificate /etc/letsencrypt/live/api.piro-recruiting.kro.kr/fullchain.pem;
+    ssl_certificate_key /etc/letsencrypt/live/api.piro-recruiting.kro.kr/privkey.pem;
+    
+    ssl_protocols TLSv1.2 TLSv1.3;
+    ssl_prefer_server_ciphers on;
+    ssl_ciphers ECDHE-RSA-AES256-GCM-SHA512:DHE-RSA-AES256-GCM-SHA512:ECDHE-RSA-AES256-GCM-SHA384:DHE-RSA-AES256-GCM-SHA384;
+    ssl_session_timeout 10m;
+    ssl_session_cache shared:SSL:10m;
+    ssl_session_tickets off;
+
+    add_header Strict-Transport-Security "max-age=63072000; includeSubDomains; preload";
+    add_header X-Frame-Options DENY;
+    add_header X-Content-Type-Options nosniff;
+    add_header X-XSS-Protection "1; mode=block";
 
     location /health {
         return 200 "healthy\\n";
@@ -284,11 +309,10 @@ server {
 
     location / {
         proxy_pass http://app_backend;
-        proxy_set_header Host \\\$host;
-        proxy_set_header X-Real-IP \\\$remote_addr;
-        proxy_set_header X-Forwarded-For \\\$proxy_add_x_forwarded_for;
-        proxy_set_header X-Forwarded-Proto \\\$scheme;
-
+        proxy_set_header Host \$host;
+        proxy_set_header X-Real-IP \$remote_addr;
+        proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto \$scheme;
         proxy_connect_timeout 10s;
         proxy_send_timeout 15s;
         proxy_read_timeout 15s;
@@ -296,7 +320,7 @@ server {
 
     location /actuator/health {
         proxy_pass http://app_backend/actuator/health;
-        proxy_set_header Host \\\$host;
+        proxy_set_header Host \$host;
     }
 
     location /deployment-status {
@@ -304,7 +328,12 @@ server {
         add_header Content-Type text/plain;
     }
 }
-EOF
+NGINX_EOF
+
+                                # 설정 파일 이동 및 권한 설정
+                                sudo mv /tmp/nginx-app.conf /etc/nginx/sites-available/app
+                                sudo chown root:root /etc/nginx/sites-available/app
+                                sudo chmod 644 /etc/nginx/sites-available/app
 
                                 # Nginx 테스트 및 재시작
                                 if sudo nginx -t; then

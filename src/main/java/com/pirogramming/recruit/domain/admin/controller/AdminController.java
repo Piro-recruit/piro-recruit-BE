@@ -11,6 +11,7 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
+import com.pirogramming.recruit.domain.admin.dto.ApiKeyExchangeRequest;
 import com.pirogramming.recruit.domain.admin.dto.CreateGeneralAdminBatchRequest;
 import com.pirogramming.recruit.domain.admin.dto.CreateGeneralAdminBatchResponse;
 import com.pirogramming.recruit.domain.admin.dto.CreateGeneralAdminRequest;
@@ -18,6 +19,7 @@ import com.pirogramming.recruit.domain.admin.dto.GeneralAdminResponse;
 import com.pirogramming.recruit.domain.admin.dto.LoginRequest;
 import com.pirogramming.recruit.domain.admin.dto.LoginResponse;
 import com.pirogramming.recruit.domain.admin.dto.RefreshTokenRequest;
+import com.pirogramming.recruit.domain.admin.dto.TokenExchangeResponse;
 import com.pirogramming.recruit.domain.admin.service.AdminService;
 
 import lombok.RequiredArgsConstructor;
@@ -36,6 +38,18 @@ public class AdminController {
     @PostMapping("/refresh")
     public ResponseEntity<LoginResponse> refresh(@RequestBody RefreshTokenRequest request) {
         return ResponseEntity.ok(adminService.reissue(request.getRefreshToken()));
+    }
+
+    @PostMapping("/logout")
+    public ResponseEntity<Void> logout(@RequestBody RefreshTokenRequest request) {
+        adminService.logout(request.getRefreshToken());
+        return ResponseEntity.ok().build();
+    }
+
+    // API Key → JWT 교환 (외부 서비스용)
+    @PostMapping("/token/exchange")
+    public ResponseEntity<TokenExchangeResponse> exchangeApiKeyForToken(@RequestBody ApiKeyExchangeRequest request) {
+        return ResponseEntity.ok(adminService.exchangeApiKeyForToken(request));
     }
 
     // General Admin 생성 (ROOT 권한 필요)

@@ -34,52 +34,12 @@ public class WebhookApplicationService {
     private final GoogleFormService googleFormService;
     private final ApplicationSummaryService applicationSummaryService;
 
-    // 구글 폼에서 전송된 지원서 데이터를 저장
-//    @Transactional
-//    public WebhookApplicationResponse processWebhookApplication(WebhookApplicationRequest request) {
-//        log.info("웹훅 지원서 처리 시작 - 폼ID: {}, 이메일: {}, 구글폼 응답ID: {}",
-//                request.getFormId(), request.getApplicantEmail(), request.getFormResponseId());
-//
-//        try {
-//            // 1. 구글 폼 조회
-//            GoogleForm googleForm = googleFormService.getGoogleFormByFormIdRequired(request.getFormId());
-//
-//            // 2. 중복 검사
-//            validateDuplication(request, googleForm);
-//
-//            // 3. 엔티티 생성 및 저장
-//            WebhookApplication application = request.toEntity(googleForm);
-//            WebhookApplication savedApplication = webhookApplicationRepository.save(application);
-//
-//            // 4. 처리 완료 상태 업데이트
-//            savedApplication.markAsProcessed();
-//
-//            log.info("웹훅 지원서 처리 완료 - ID: {}, 이메일: {}",
-//                    savedApplication.getId(), savedApplication.getApplicantEmail());
-//
-//            return WebhookApplicationResponse.from(savedApplication);
-//
-//        } catch (DuplicateResourceException e) {
-//            // 중복 예외는 그대로 던짐
-//            log.warn("웹훅 지원서 중복 - 이메일: {}, 오류: {}", request.getApplicantEmail(), e.getMessage());
-//            throw e;
-//
-//        } catch (Exception e) {
-//            log.error("웹훅 지원서 처리 실패 - 이메일: {}, 오류: {}", request.getApplicantEmail(), e.getMessage(), e);
-//
-//            // 실패한 지원서도 일단 저장하고, 실패 상태로 표시
-//            try {
-//                GoogleForm googleForm = googleFormService.getGoogleFormByFormIdRequired(request.getFormId());
-//                WebhookApplication failedApplication = request.toEntity(googleForm);
-//                failedApplication.markAsFailed(e.getMessage());
-//                WebhookApplication savedFailedApplication = webhookApplicationRepository.save(failedApplication);
-//                return WebhookApplicationResponse.from(savedFailedApplication);
-//            } catch (Exception saveException) {
-//                log.error("실패한 지원서 저장 중 추가 오류 발생: {}", saveException.getMessage(), saveException);
-//                throw new RecruitException(HttpStatus.INTERNAL_SERVER_ERROR, ErrorCode.WEBHOOK_PROCESSING_FAILED);
-//            }
-//        }
-//    }
+    /**
+     * 구글 폼에서 전송된 지원서 데이터를 저장 + AI 요약 트리거
+     * - 중복 정책: formResponseId만 중복 불가 (같은 이메일의 복수 지원 허용)
+     * - 저장 성공 후 processed 마킹
+     * - 요약 생성/저장은 실패해도 웹훅 저장은 유지 (409(CONFLICT)는 경고 로그만)
+     */
     @Transactional
     public WebhookApplicationResponse processWebhookApplication(WebhookApplicationRequest request) {
         log.info("웹훅 지원서 처리 시작 - 폼ID: {}, 이메일: {}, 구글폼 응답ID: {}",
@@ -89,17 +49,17 @@ public class WebhookApplicationService {
             // 1) 구글 폼 존재 확인
             GoogleForm googleForm = googleFormService.getGoogleFormByFormIdRequired(request.getFormId());
 
-            // 2) 중복 검사 (formResponseId만 검사: 이메일 중복은 허용)
+            // 2) 중복 검사: formResponseId만 검사
             validateDuplication(request, googleForm);
 
-            // 3) 지원서 저장
+            // 3) 엔티티 생성 및 저장
             WebhookApplication application = request.toEntity(googleForm);
             WebhookApplication savedApplication = webhookApplicationRepository.save(application);
 
             // 4) 처리 완료 상태로 마킹
             savedApplication.markAsProcessed();
 
-            // 5) AI 요약 생성·저장 (복합 유니크: formResponseId + applicantEmail)
+            // 5) AI 요약 생성·저장 (복합 유니크: formResponseId + applicantEmail 가정)
             try {
                 applicationSummaryService.summarizeAndSaveFromWebhook(
                         request.getFormId(),
@@ -110,7 +70,7 @@ public class WebhookApplicationService {
                 );
                 log.info("요약 생성/저장 완료 - formResponseId: {}, email: {}",
                         request.getFormResponseId(), request.getApplicantEmail());
-            } catch (com.pirogramming.recruit.global.exception.RecruitException e) {
+            } catch (RecruitException e) {
                 // 이미 같은 (formResponseId, email) 조합이 있으면 409로 들어올 수 있음 → 경고만 남기고 웹훅 저장은 유지
                 if (e.getStatus() != null && e.getStatus().value() == HttpStatus.CONFLICT.value()) {
                     log.warn("요약 중복으로 저장 생략 - formResponseId: {}, email: {}",
@@ -125,10 +85,10 @@ public class WebhookApplicationService {
             log.info("웹훅 지원서 처리 완료 - ID: {}, 이메일: {}", savedApplication.getId(), savedApplication.getApplicantEmail());
             return WebhookApplicationResponse.from(savedApplication);
 
-        } catch (com.pirogramming.recruit.global.exception.RecruitException e) {
+        } catch (RecruitException e) {
+            // 도메인 예외의 경우에도 실패 이력은 남겨둔다
             log.error("웹훅 지원서 처리 실패 - {}", e.getMessage(), e);
             try {
-                // 실패 이력도 남겨두기
                 GoogleForm googleForm = googleFormService.getGoogleFormByFormIdRequired(request.getFormId());
                 WebhookApplication failedApplication = request.toEntity(googleForm);
                 failedApplication.markAsFailed(e.getMessage());
@@ -136,46 +96,25 @@ public class WebhookApplicationService {
                 return WebhookApplicationResponse.from(savedFailedApplication);
             } catch (Exception saveException) {
                 log.error("실패한 지원서 저장 중 추가 오류 발생: {}", saveException.getMessage(), saveException);
-                throw new com.pirogramming.recruit.global.exception.RecruitException(
-                        HttpStatus.INTERNAL_SERVER_ERROR,
-                        com.pirogramming.recruit.global.exception.code.ErrorCode.WEBHOOK_PROCESSING_FAILED
-                );
+                throw new RecruitException(HttpStatus.INTERNAL_SERVER_ERROR, ErrorCode.WEBHOOK_PROCESSING_FAILED);
             }
         } catch (Exception e) {
             log.error("웹훅 지원서 처리 중 알 수 없는 오류 - {}", e.getMessage(), e);
-            throw new com.pirogramming.recruit.global.exception.RecruitException(
-                    HttpStatus.INTERNAL_SERVER_ERROR,
-                    com.pirogramming.recruit.global.exception.code.ErrorCode.WEBHOOK_PROCESSING_FAILED
-            );
+            throw new RecruitException(HttpStatus.INTERNAL_SERVER_ERROR, ErrorCode.WEBHOOK_PROCESSING_FAILED);
         }
     }
 
-
-    // 중복 검사
-//    private void validateDuplication(WebhookApplicationRequest request, GoogleForm googleForm) {
-//        // 구글 폼 응답 ID 중복 검사
-//        if (webhookApplicationRepository.existsByFormResponseId(request.getFormResponseId())) {
-//            throw new DuplicateResourceException(ErrorCode.WEBHOOK_DUPLICATE_FORM_RESPONSE);
-//        }
-//
-//        // 동일 구글 폼에서 이메일 중복 검사
-//        if (webhookApplicationRepository.existsByGoogleFormIdAndApplicantEmail(
-//                googleForm.getId(), request.getApplicantEmail())) {
-//            throw new DuplicateResourceException(ErrorCode.WEBHOOK_DUPLICATE_EMAIL);
-//        }
-//    }
-
-    // 중복 검사: formResponseId만 중복 불가 (같은 이메일로 여러 지원서는 허용)
+    /**
+     * 중복 검사: formResponseId만 중복 불가 (같은 이메일로 여러 지원서는 허용)
+     */
     private void validateDuplication(WebhookApplicationRequest request, GoogleForm googleForm) {
-        // 구글 폼 응답 ID 중복 검사
         if (webhookApplicationRepository.existsByFormResponseId(request.getFormResponseId())) {
-            throw new com.pirogramming.recruit.global.exception.entity_exception.DuplicateResourceException(
-                    com.pirogramming.recruit.global.exception.code.ErrorCode.WEBHOOK_DUPLICATE_FORM_RESPONSE
-            );
+            throw new DuplicateResourceException(ErrorCode.WEBHOOK_DUPLICATE_FORM_RESPONSE);
         }
-        // ⚠️ 기존 코드에 있던 "구글 폼 + 이메일 중복" / "폼ID + 이메일 중복" 검사는 제거합니다.
+        // ⚠️ 기존 "구글 폼 + 이메일 중복" 검사는 제거함
     }
 
+    // ========================= 조회/통계 공용 =========================
 
     // 전체 지원서 목록 조회
     public List<WebhookApplicationResponse> getAllApplications() {
@@ -185,7 +124,7 @@ public class WebhookApplicationService {
                 .collect(Collectors.toList());
     }
 
-    // 구글 폼별 지원서 목록 조회 (구글 폼 ID)
+    // 구글 폼별 지원서 목록 조회 (구글 폼 PK)
     public List<WebhookApplicationResponse> getApplicationsByGoogleForm(Long googleFormId) {
         return webhookApplicationRepository.findByGoogleFormIdOrderByCreatedAtDesc(googleFormId)
                 .stream()
@@ -193,7 +132,7 @@ public class WebhookApplicationService {
                 .collect(Collectors.toList());
     }
 
-    // 구글 폼별 지원서 목록 조회 (폼 ID)
+    // 구글 폼별 지원서 목록 조회 (외부 formId)
     public List<WebhookApplicationResponse> getApplicationsByFormId(String formId) {
         return webhookApplicationRepository.findByFormIdOrderByCreatedAtDesc(formId)
                 .stream()
@@ -246,12 +185,12 @@ public class WebhookApplicationService {
         return webhookApplicationRepository.countPendingApplications();
     }
 
-    // 구글 폼별 지원서 개수 조회
+    // 구글 폼별 지원서 개수 조회 (구글 폼 PK)
     public long getApplicationCountByGoogleForm(Long googleFormId) {
         return webhookApplicationRepository.countByGoogleFormId(googleFormId);
     }
 
-    // 폼 ID별 지원서 개수 조회 (최적화됨)
+    // 폼 ID별 지원서 개수 조회 (외부 formId)
     public long getApplicationCountByFormId(String formId) {
         return webhookApplicationRepository.countByFormId(formId);
     }
@@ -261,12 +200,12 @@ public class WebhookApplicationService {
         return webhookApplicationRepository.existsByApplicantEmail(email);
     }
 
-    // 구글 폼별 지원서 제출 여부 확인
+    // 구글 폼별 지원서 제출 여부 확인 (구글 폼 PK)
     public boolean isApplicationSubmittedForGoogleForm(Long googleFormId, String email) {
         return webhookApplicationRepository.existsByGoogleFormIdAndApplicantEmail(googleFormId, email);
     }
 
-    // 폼 ID별 지원서 제출 여부 확인
+    // 폼 ID별 지원서 제출 여부 확인 (외부 formId)
     public boolean isApplicationSubmittedForFormId(String formId, String email) {
         return webhookApplicationRepository.existsByFormIdAndApplicantEmail(formId, email);
     }
@@ -289,35 +228,124 @@ public class WebhookApplicationService {
 
         List<Object[]> results = webhookApplicationRepository.countByGoogleFormIds(googleFormIds);
         Map<Long, Long> countMap = new HashMap<>();
-        
+
         // 쿼리 결과를 Map으로 변환
         for (Object[] result : results) {
             Long googleFormId = (Long) result[0];
             Long count = (Long) result[1];
             countMap.put(googleFormId, count);
         }
-        
+
         // 조회된 결과에 없는 구글 폼은 0으로 설정
         for (Long googleFormId : googleFormIds) {
             countMap.putIfAbsent(googleFormId, 0L);
         }
-        
+
         return countMap;
     }
 
     // 통계 계산 공통 로직 (중복 제거)
     private Map<WebhookApplication.ProcessingStatus, Long> calculateStatusStatistics(java.util.function.Function<WebhookApplication.ProcessingStatus, Long> countFunction) {
         Map<WebhookApplication.ProcessingStatus, Long> statistics = new HashMap<>();
-        
+
         for (WebhookApplication.ProcessingStatus status : WebhookApplication.ProcessingStatus.values()) {
             long count = countFunction.apply(status);
             statistics.put(status, count);
         }
-        
+
         return statistics;
     }
 
-//    summary_ai 추가
+    // ========================= 합격 상태 관련 (원래 코드 유지) =========================
+
+    // ID로 지원서 조회 (필수) -> 없으면 예외 발생
+    public WebhookApplication getApplicationByIdRequired(Long id) {
+        return webhookApplicationRepository.findById(id)
+                .orElseThrow(() -> new RecruitException(HttpStatus.NOT_FOUND, ErrorCode.WEBHOOK_APPLICATION_NOT_FOUND));
+    }
+
+    // 합격 상태 변경 (개별)
+    @Transactional
+    public WebhookApplication updatePassStatus(Long id, WebhookApplication.PassStatus passStatus) {
+        WebhookApplication application = getApplicationByIdRequired(id);
+
+        switch (passStatus) {
+            case FIRST_PASS -> application.markAsFirstPass();
+            case FINAL_PASS -> application.markAsFinalPass();
+            case FAILED -> application.markAsPassFailed();
+            case PENDING -> application.resetPassStatus();
+        }
+
+        WebhookApplication saved = webhookApplicationRepository.save(application);
+        log.info("합격 상태 변경: {} -> {}", application.getApplicantEmail(), passStatus);
+
+        return saved;
+    }
+
+    // 합격 상태 일괄 변경
+    @Transactional
+    public List<WebhookApplication> updatePassStatusAll(List<Long> ids, WebhookApplication.PassStatus passStatus) {
+        List<WebhookApplication> applications = webhookApplicationRepository.findAllById(ids);
+
+        for (WebhookApplication app : applications) {
+            switch (passStatus) {
+                case FIRST_PASS -> app.markAsFirstPass();
+                case FINAL_PASS -> app.markAsFinalPass();
+                case FAILED -> app.markAsPassFailed();
+                case PENDING -> app.resetPassStatus();
+            }
+        }
+
+        List<WebhookApplication> saved = webhookApplicationRepository.saveAll(applications);
+        log.info("일괄 합격 상태 변경: {} 건 -> {}", applications.size(), passStatus);
+
+        return saved;
+    }
+
+    // 합격 상태별 지원서 조회
+    public List<WebhookApplication> getApplicationsByPassStatus(WebhookApplication.PassStatus passStatus) {
+        return webhookApplicationRepository.findByPassStatus(passStatus);
+    }
+
+    // 합격 상태별 개수 조회
+    public long getApplicationCountByPassStatus(WebhookApplication.PassStatus passStatus) {
+        return webhookApplicationRepository.countByPassStatus(passStatus);
+    }
+
+    // 구글 폼별 + 합격 상태별 지원서 조회
+    public List<WebhookApplication> getApplicationsByGoogleFormAndPassStatus(Long googleFormId, WebhookApplication.PassStatus passStatus) {
+        return webhookApplicationRepository.findByGoogleFormIdAndPassStatus(googleFormId, passStatus);
+    }
+
+    // 합격 상태 통계 조회
+    public Map<WebhookApplication.PassStatus, Long> getPassStatusStatistics() {
+        Map<WebhookApplication.PassStatus, Long> statistics = new HashMap<>();
+
+        for (WebhookApplication.PassStatus status : WebhookApplication.PassStatus.values()) {
+            long count = getApplicationCountByPassStatus(status);
+            statistics.put(status, count);
+        }
+
+        return statistics;
+    }
+
+    // 구글 폼별 합격 상태 통계 조회
+    public Map<WebhookApplication.PassStatus, Long> getPassStatusStatisticsByGoogleForm(Long googleFormId) {
+        Map<WebhookApplication.PassStatus, Long> statistics = new HashMap<>();
+
+        for (WebhookApplication.PassStatus status : WebhookApplication.PassStatus.values()) {
+            List<WebhookApplication> applications = getApplicationsByGoogleFormAndPassStatus(googleFormId, status);
+            statistics.put(status, (long) applications.size());
+        }
+
+        return statistics;
+    }
+
+    // ========================= summary_ai 전용 엔드포인트 =========================
+
+    /**
+     * 요약 전용 수신 엔드포인트 (웹훅 원본 저장 없이 요약 테이블만 저장하고 단순 응답)
+     */
     @Transactional
     public WebhookApplicationResponse receiveAndSummarize(WebhookApplicationRequest req) {
 
@@ -347,6 +375,4 @@ public class WebhookApplicationService {
                 .updatedAt(null)
                 .build();
     }
-
-
 }
