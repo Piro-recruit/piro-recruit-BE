@@ -85,7 +85,7 @@ public class ApplicationSummaryService {
     }
 
     /**
-     * 폼 입력값 유효성 검증
+     * 폼 입력값 유효성 검증 (고도화된 프롬프트 인젝션 방어)
      */
     private boolean isValidFormEntry(String key, Object value) {
         if (key == null || key.trim().isEmpty()) return false;
@@ -98,34 +98,169 @@ public class ApplicationSummaryService {
             return false;
         }
         
-        // 악성 패턴 검사 (기본적인 프롬프트 인젝션 방지)
-        String[] suspiciousPatterns = {
-                "ignore previous", "forget everything", "new instructions", 
-                "system:", "assistant:", "user:", "You are now", "Act as",
-                "\\n\\n", "---", "```", "<script", "</script>", 
-                "javascript:", "data:", "vbscript:"
-        };
-        
-        String lowerKey = key.toLowerCase();
-        String lowerValue = valueStr.toLowerCase();
-        
-        for (String pattern : suspiciousPatterns) {
-            if (lowerKey.contains(pattern) || lowerValue.contains(pattern)) {
-                return false;
-            }
+        // 빈 값 검사
+        if (key.trim().isEmpty() || valueStr.trim().isEmpty()) {
+            return false;
         }
         
-        return true;
+        // 비정상적인 반복 패턴 검사
+        if (hasExcessiveRepetition(valueStr)) {
+            return false;
+        }
+        
+        // 다층 프롬프트 인젝션 검사
+        return !detectPromptInjection(key) && !detectPromptInjection(valueStr);
+    }
+    
+    /**
+     * 고도화된 프롬프트 인젝션 탐지
+     */
+    private boolean detectPromptInjection(String input) {
+        if (input == null || input.trim().isEmpty()) return false;
+        
+        String normalized = normalizeForDetection(input);
+        
+        // 1. 직접적인 명령어 패턴
+        String[] directCommands = {
+            "ignore", "forget", "disregard", "override", "replace", "update", "modify",
+            "new instructions", "different task", "change role", "act as", "you are now",
+            "pretend", "simulate", "roleplay", "behave as"
+        };
+        
+        // 2. 시스템 메시지 패턴
+        String[] systemPatterns = {
+            "system:", "assistant:", "user:", "human:", "ai:", "gpt:", "model:",
+            "[system]", "[assistant]", "[user]", "[human]", "<system>", "</system>"
+        };
+        
+        // 3. 출력 형식 조작 패턴
+        String[] outputPatterns = {
+            "output only", "respond with", "answer with", "reply with", "return only",
+            "don't include", "exclude", "omit", "skip", "bypass"
+        };
+        
+        // 4. 컨텍스트 탈출 패턴
+        String[] escapePatterns = {
+            "\\n\\n", "---", "```", "***", "###", "===", "***END***",
+            "<!-- ", " -->", "<!", "!>", "\\0", "\\x", "\\u"
+        };
+        
+        // 5. 스크립트 인젝션 패턴
+        String[] scriptPatterns = {
+            "<script", "</script>", "javascript:", "data:", "vbscript:",
+            "onclick", "onerror", "onload", "eval(", "function("
+        };
+        
+        // 패턴 검사
+        return containsAnyPattern(normalized, directCommands) ||
+               containsAnyPattern(normalized, systemPatterns) ||
+               containsAnyPattern(normalized, outputPatterns) ||
+               containsAnyPattern(normalized, escapePatterns) ||
+               containsAnyPattern(normalized, scriptPatterns) ||
+               detectAdvancedInjectionPatterns(normalized);
+    }
+    
+    /**
+     * 탐지를 위한 텍스트 정규화
+     */
+    private String normalizeForDetection(String input) {
+        return input.toLowerCase()
+            .replaceAll("[\\s\\p{Punct}]+", " ") // 공백과 구두점을 공백으로 통일
+            .replaceAll("\\s+", " ") // 연속 공백 제거
+            .trim();
+    }
+    
+    /**
+     * 패턴 배열에서 일치하는 항목 검사
+     */
+    private boolean containsAnyPattern(String input, String[] patterns) {
+        for (String pattern : patterns) {
+            if (input.contains(pattern.toLowerCase())) {
+                return true;
+            }
+        }
+        return false;
+    }
+    
+    /**
+     * 고급 인젝션 패턴 탐지 (우회 시도 감지)
+     */
+    private boolean detectAdvancedInjectionPatterns(String input) {
+        // 1. 반복적인 특수문자 패턴 (obfuscation 시도)
+        if (input.matches(".*[!@#$%^&*()\\-_=+\\[\\]{}|;:'\",.<>?/~`]{5,}.*")) {
+            return true;
+        }
+        
+        // 2. 역할 변경 지시어 조합 패턴
+        String[] roleChangeIndicators = {"you", "are", "now", "act", "like", "as", "if"};
+        int roleChangeCount = 0;
+        for (String indicator : roleChangeIndicators) {
+            if (input.contains(indicator)) {
+                roleChangeCount++;
+            }
+        }
+        if (roleChangeCount >= 3) { // 3개 이상 조합 시 의심
+            return true;
+        }
+        
+        // 3. Base64/URL 인코딩 의심 패턴
+        if (input.matches(".*[A-Za-z0-9+/]{20,}={0,2}.*") || 
+            input.matches(".*%[0-9A-Fa-f]{2}.*")) {
+            return true;
+        }
+        
+        // 4. 명령어 체이닝 패턴
+        String[] chainPatterns = {"and then", "after that", "next", "followed by", "also"};
+        return containsAnyPattern(input, chainPatterns) && 
+               (input.contains("ignore") || input.contains("forget") || input.contains("new"));
     }
 
     /**
-     * 입력값 sanitization (프롬프트 인젝션 방지)
+     * 비정상적인 반복 패턴 검사 (스팸 방지)
+     */
+    private boolean hasExcessiveRepetition(String input) {
+        if (input == null || input.length() < 10) return false;
+        
+        // 1. 동일 문자 연속 반복 검사
+        char prevChar = 0;
+        int consecutiveCount = 1;
+        for (char c : input.toCharArray()) {
+            if (c == prevChar) {
+                consecutiveCount++;
+                if (consecutiveCount > 10) { // 10개 이상 연속
+                    return true;
+                }
+            } else {
+                consecutiveCount = 1;
+                prevChar = c;
+            }
+        }
+        
+        // 2. 단어 반복 검사
+        String[] words = input.toLowerCase().split("\\s+");
+        if (words.length > 5) {
+            Map<String, Integer> wordCount = new java.util.HashMap<>();
+            for (String word : words) {
+                if (word.length() > 2) { // 2자 이상 단어만
+                    wordCount.put(word, wordCount.getOrDefault(word, 0) + 1);
+                    if (wordCount.get(word) > words.length / 3) { // 1/3 이상 반복
+                        return true;
+                    }
+                }
+            }
+        }
+        
+        return false;
+    }
+
+    /**
+     * 입력값 sanitization (프롬프트 인젝션 방지 강화)
      */
     private String sanitizeInput(String input) {
         if (input == null) return "";
         
-        return input
-                // 제어 문자 제거
+        String sanitized = input
+                // 제어 문자 제거 (탭, 줄바꿈 제외)
                 .replaceAll("[\\p{Cntrl}&&[^\r\n\t]]", "")
                 // 연속된 공백 정규화
                 .replaceAll("\\s+", " ")
@@ -134,8 +269,12 @@ public class ApplicationSummaryService {
                 .replace("---", "—")
                 .replace("###", "")
                 .replace("**", "")
+                .replace("<!--", "<comment>")
+                .replace("-->", "</comment>")
                 // 앞뒤 공백 제거
                 .trim();
+        
+        return sanitized;
     }
 
     /**
