@@ -14,13 +14,15 @@ import java.io.IOException;
 
 @Component
 public class WebhookTokenFilter extends OncePerRequestFilter {
-    @Value("${webhook.token:}")
+//    @Value("${webhook.token:}")
+    @Value("${webhook.api.key:}")
     private String webhookToken;
 
     @Override
     protected boolean shouldNotFilter(HttpServletRequest request) {
         String path = request.getRequestURI();
-        return path == null || !path.startsWith("/webhook/");
+//        return path == null || !path.startsWith("/webhook/");
+        return path == null || !path.startsWith("/api/webhook/");
     }
 
     @Override

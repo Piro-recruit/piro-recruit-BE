@@ -68,6 +68,7 @@ public class SecurityConfig {
 				.requestMatchers("/actuator/health").permitAll()
 				.requestMatchers("/mail/subscribers").permitAll()  // 이메일 구독은 인증 없이 접근 가능
 				.requestMatchers("/api/google-forms/active/exists").permitAll()  // 활성화된 구글폼 존재 여부 확인은 인증 없이 접근 가능
+				.requestMatchers("/api/webhook/**").permitAll()
 				.anyRequest().authenticated()
 			)
 			.exceptionHandling(except -> except
@@ -75,6 +76,7 @@ public class SecurityConfig {
 					response.sendError(HttpServletResponse.SC_UNAUTHORIZED, "Unauthorized"))
 			);
 
+		http.addFilterBefore(webhookTokenFilter, UsernamePasswordAuthenticationFilter.class);
 		http.addFilterBefore(new JwtAuthenticationFilter(jwtTokenProvider, customUserDetailsService),
 			UsernamePasswordAuthenticationFilter.class);
 
