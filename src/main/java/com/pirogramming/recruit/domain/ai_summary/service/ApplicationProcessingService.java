@@ -194,13 +194,13 @@ public class ApplicationProcessingService {
 			- Highlight relevant skills, experiences, or attitudes shown in that specific answer
 			- Keep the original question text exactly as provided
 			- Do NOT include the original answer text in the response
-			- Use formal Korean writing style (문어체) for all summaries
+			- IMPORTANT: Use formal Korean writing style (문어체) - avoid casual endings like ~습니다, ~입니다. Use ~함, ~됨, ~임 instead
 			
 			For scoreReason:
 			- Provide objective breakdown by evaluation criteria with specific point allocation
 			- Format: "열정 및 학습 태도: X/40점 - specific evidence. 협업 잠재력: Y/30점 - specific evidence. 기술적 기반: Z/20점 - specific evidence. 성장 마인드셋: W/10점 - specific evidence."
 			- Base points on concrete evidence from the answers, not subjective impressions
-			- Use formal Korean writing style (문어체)
+			- IMPORTANT: Use formal Korean writing style (문어체) - avoid ~습니다, ~입니다 endings. Use ~함, ~됨, ~임, ~보임 instead
 			
 			Evaluation Criteria (100 points total):
 			1. Passion & Learning Attitude (40 points):
@@ -235,7 +235,8 @@ public class ApplicationProcessingService {
 			- Consider both CS majors and non-majors fairly
 			- Value learning potential over current technical level for beginners
 			- Emphasize collaboration and passion over pure technical skills
-			- All text values must be written in Korean
+			- All text values must be written in Korean using formal writing style (문어체)
+			- Avoid conversational endings (~습니다, ~입니다) and use formal endings (~함, ~됨, ~임, ~보임)
 			- Return only valid JSON without any additional text or markdown formatting
 			""".formatted(questionsText);
 	}
