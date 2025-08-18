@@ -13,6 +13,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.pirogramming.recruit.domain.ai_summary.dto.ApplicationQuestionDto;
 import com.pirogramming.recruit.domain.ai_summary.dto.ApplicationSummaryDto;
 import com.pirogramming.recruit.domain.ai_summary.port.LlmClient;
+import com.pirogramming.recruit.domain.ai_summary.util.TextSanitizerUtil;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -350,7 +351,7 @@ public class ApplicationProcessingService {
 	 * 점수 근거 검증 및 정제
 	 */
 	private String validateAndCleanScoreReason(String scoreReason, int score) {
-		String cleaned = sanitizeText(scoreReason);
+		String cleaned = TextSanitizerUtil.sanitize(scoreReason);
 		
 		if (cleaned == null || cleaned.trim().isEmpty()) {
 			return "점수 근거를 제공할 수 없습니다.";
@@ -427,8 +428,8 @@ public class ApplicationProcessingService {
 			return null;
 		}
 		
-		String cleanQuestion = sanitizeText(questionSummary.getQuestion());
-		String cleanAiSummary = sanitizeText(questionSummary.getAiSummary());
+		String cleanQuestion = TextSanitizerUtil.sanitize(questionSummary.getQuestion());
+		String cleanAiSummary = TextSanitizerUtil.sanitize(questionSummary.getAiSummary());
 		
 		// 빈 내용 검사
 		if (cleanQuestion.trim().isEmpty() || cleanAiSummary.trim().isEmpty()) {
@@ -508,37 +509,6 @@ public class ApplicationProcessingService {
 		return false;
 	}
 	
-	/**
-	 * 텍스트 정제 (길이 제한 및 유해 콘텐츠 제거)
-	 */
-	private String sanitizeText(String text) {
-		if (text == null) return "";
-		
-		String cleaned = text
-			.replaceAll("[\\p{Cntrl}&&[^\r\n\t]]", "") // 제어 문자 제거
-			.replaceAll("\\s+", " ") // 연속 공백 정규화
-			.trim();
-		
-		// 길이 제한
-		if (cleaned.length() > 1000) {
-			cleaned = cleaned.substring(0, 997) + "...";
-		}
-		
-		return cleaned;
-	}
-	
-	/**
-	 * 리스트 정제
-	 */
-	private List<String> sanitizeList(List<String> list) {
-		if (list == null) return List.of();
-		
-		return list.stream()
-			.filter(Objects::nonNull)
-			.map(this::sanitizeText)
-			.filter(s -> !s.trim().isEmpty())
-			.collect(Collectors.toList());
-	}
 	
 	/**
 	 * 안전한 JSON 추출 (보안 강화)
