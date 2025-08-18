@@ -53,7 +53,9 @@ com.pirogramming.recruit
 ├── domain/                 # Domain-specific modules
 │   ├── admin/             # Admin authentication & authorization
 │   ├── ai_summary/        # OpenAI integration for application processing
+│   ├── evaluation/        # Application evaluation system
 │   ├── googleform/        # Google Form integration
+│   ├── integration/       # Apps Script integration services
 │   ├── mail/              # Email services and subscriber management
 │   └── webhook/           # Webhook application processing
 │       ├── controller/    # REST API endpoints
@@ -65,7 +67,8 @@ com.pirogramming.recruit
     ├── config/          # Security, JPA, Swagger, WebClient configuration
     ├── exception/       # Global exception handling with ApiRes wrapper
     ├── entity/          # Base entities (BaseTimeEntity)
-    └── jwt/            # JWT authentication and token management
+    ├── jwt/            # JWT authentication and token management
+    └── security/        # Security annotations and filters
 ```
 
 ### Key Technologies
@@ -136,7 +139,9 @@ fix auth: resolve authentication error on login
 ### Core Domains
 - **admin**: Admin authentication/authorization with JWT and refresh token support
 - **ai_summary**: OpenAI integration for application processing and summarization
+- **evaluation**: Application evaluation system with score tracking (0-100) and comments
 - **googleform**: Google Form integration for handling external form submissions
+- **integration**: Apps Script integration services for external webhook processing
 - **mail**: Email service with bulk/single mail capabilities and subscriber management
 - **webhook**: Webhook-based application processing system
 
@@ -157,3 +162,9 @@ fix auth: resolve authentication error on login
 - ALWAYS prefer editing existing files over creating new ones
 - NEVER create files unless absolutely necessary for the task
 - NEVER proactively create documentation files (*.md) or README files unless explicitly requested
+
+# important-instruction-reminders
+Do what has been asked; nothing more, nothing less.
+NEVER create files unless they're absolutely necessary for achieving your goal.
+ALWAYS prefer editing an existing file to creating a new one.
+NEVER proactively create documentation files (*.md) or README files. Only create documentation files if explicitly requested by the User.

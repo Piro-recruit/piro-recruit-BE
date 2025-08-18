@@ -8,6 +8,7 @@ import java.util.Map;
 import org.hibernate.annotations.JdbcTypeCode;
 import org.hibernate.type.SqlTypes;
 
+import com.pirogramming.recruit.domain.ai_summary.entity.ApplicationSummary;
 import com.pirogramming.recruit.domain.evaluation.entity.Evaluation;
 import com.pirogramming.recruit.domain.googleform.entity.GoogleForm;
 import com.pirogramming.recruit.global.entity.BaseTimeEntity;
@@ -24,6 +25,7 @@ import jakarta.persistence.Id;
 import jakarta.persistence.JoinColumn;
 import jakarta.persistence.ManyToOne;
 import jakarta.persistence.OneToMany;
+import jakarta.persistence.OneToOne;
 import jakarta.persistence.Table;
 import jakarta.persistence.UniqueConstraint;
 import lombok.AccessLevel;
@@ -114,6 +116,10 @@ public class WebhookApplication extends BaseTimeEntity {
     // 연관된 평가들 (지원서 삭제 시 함께 삭제)
     @OneToMany(mappedBy = "application", cascade = CascadeType.ALL, orphanRemoval = true)
     private List<Evaluation> evaluations = new ArrayList<>();
+
+    // AI 요약 (1:1 관계, 지원서 삭제 시 함께 삭제)
+    @OneToOne(mappedBy = "webhookApplication", cascade = CascadeType.ALL, orphanRemoval = true, fetch = FetchType.LAZY)
+    private ApplicationSummary applicationSummary;
 
     @Builder
     public WebhookApplication(GoogleForm googleForm, String applicantName, String applicantEmail,
