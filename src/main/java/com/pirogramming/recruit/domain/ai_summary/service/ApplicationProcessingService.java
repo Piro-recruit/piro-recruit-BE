@@ -2,6 +2,7 @@ package com.pirogramming.recruit.domain.ai_summary.service;
 
 import java.util.List;
 import java.util.Objects;
+import java.util.concurrent.CompletableFuture;
 import java.util.stream.Collectors;
 
 import org.springframework.stereotype.Service;
@@ -22,17 +23,110 @@ import lombok.extern.slf4j.Slf4j;
 @Transactional
 public class ApplicationProcessingService {
 	private final LlmClient llmClient;
+	private final ApplicationCacheService cacheService;
 	private final ObjectMapper objectMapper = new ObjectMapper();
 
 	public ApplicationSummaryDto processApplication(List<ApplicationQuestionDto> questions) {
-		// 동적 프롬프트 생성
+		// 1. 캐시된 결과 확인
+		ApplicationSummaryDto cachedResult = cacheService.getCachedSummary(questions);
+		if (cachedResult != null) {
+			return cachedResult;
+		}
+		
+		// 2. 동적 프롬프트 생성
 		String prompt = createDynamicSummaryPrompt(questions);
 		
-		// LLM을 통한 요약 생성
+		// 3. LLM을 통한 요약 생성
 		String llmResponse = llmClient.chat(prompt);
 		
-		// JSON 응답 파싱
-		return parseJsonResponse(llmResponse);
+		// 4. JSON 응답 파싱
+		ApplicationSummaryDto result = parseJsonResponse(llmResponse);
+		
+		// 5. 결과 캐싱 (유효한 경우에만)
+		if (isValidForCaching(result)) {
+			cacheService.cacheSummary(questions, result);
+		}
+		
+		return result;
+	}
+	
+	/**
+	 * 캐싱 가능한 유효한 결과인지 검사
+	 */
+	private boolean isValidForCaching(ApplicationSummaryDto result) {
+		if (result == null) return false;
+		
+		// 폴백 응답은 캐싱하지 않음
+		if (result.getScoreOutOf100() == 0 && 
+			result.getScoreReason().contains("오류")) {
+			return false;
+		}
+		
+		// 빈 요약은 캐싱하지 않음
+		if (result.getQuestionSummaries() == null || 
+			result.getQuestionSummaries().isEmpty()) {
+			return false;
+		}
+		
+		return true;
+	}
+	
+	/**
+	 * 비동기 방식으로 지원서 처리 (성능 개선)
+	 */
+	public CompletableFuture<ApplicationSummaryDto> processApplicationAsync(List<ApplicationQuestionDto> questions) {
+		// 1. 캐시된 결과 확인 (동기)
+		ApplicationSummaryDto cachedResult = cacheService.getCachedSummary(questions);
+		if (cachedResult != null) {
+			return CompletableFuture.completedFuture(cachedResult);
+		}
+		
+		// 2. 동적 프롬프트 생성
+		String prompt = createDynamicSummaryPrompt(questions);
+		
+		// 3. 비동기 LLM 호출
+		return llmClient.chatAsync(prompt)
+			.thenApply(this::parseJsonResponse)
+			.thenApply(result -> {
+				// 4. 결과 캐싱 (유효한 경우에만)
+				if (isValidForCaching(result)) {
+					cacheService.cacheSummary(questions, result);
+				}
+				return result;
+			})
+			.exceptionally(throwable -> {
+				log.error("Async application processing failed", throwable);
+				return createFallbackSummary();
+			});
+	}
+	
+	/**
+	 * 다중 지원서 배치 처리 (병렬 처리)
+	 */
+	public CompletableFuture<List<ApplicationSummaryDto>> processBatchApplicationsAsync(
+			List<List<ApplicationQuestionDto>> applicationsList) {
+		
+		if (applicationsList == null || applicationsList.isEmpty()) {
+			return CompletableFuture.completedFuture(List.of());
+		}
+		
+		// 배치 크기 제한 (DoS 방지)
+		if (applicationsList.size() > 10) {
+			log.warn("Batch size limited to 10, received: {}", applicationsList.size());
+			applicationsList = applicationsList.subList(0, 10);
+		}
+		
+		// 병렬 처리
+		List<CompletableFuture<ApplicationSummaryDto>> futures = applicationsList.stream()
+			.map(this::processApplicationAsync)
+			.collect(Collectors.toList());
+		
+		// 모든 작업 완료 대기
+		return CompletableFuture.allOf(futures.toArray(new CompletableFuture[0]))
+			.thenApply(v -> futures.stream()
+				.map(CompletableFuture::join)
+				.collect(Collectors.toList())
+			);
 	}
 	
 	public ApplicationSummaryDto processApplicationWithDummyData() {

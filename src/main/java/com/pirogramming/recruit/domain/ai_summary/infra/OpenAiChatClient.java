@@ -1,6 +1,8 @@
 package com.pirogramming.recruit.domain.ai_summary.infra;
 
+import java.time.Duration;
 import java.util.Map;
+import java.util.concurrent.CompletableFuture;
 
 import org.springframework.core.ParameterizedTypeReference;
 import org.springframework.stereotype.Component;
@@ -22,7 +24,37 @@ public class OpenAiChatClient implements LlmClient {
 
 	@Override
 	public String chat(String prompt) {
-		Map<String, Object> requestBody = Map.of(
+		// 기존 동기 방식 유지 (호환성)
+		try {
+			return chatAsync(prompt).get();
+		} catch (Exception e) {
+			log.error("Synchronous chat call failed: {}", e.getClass().getSimpleName());
+			return createFallbackResponse();
+		}
+	}
+	
+	@Override
+	public CompletableFuture<String> chatAsync(String prompt) {
+		Map<String, Object> requestBody = createRequestBody(prompt);
+		
+		return openAiWebClient.post()
+			.uri("/chat/completions")
+			.body(BodyInserters.fromValue(requestBody))
+			.retrieve()
+			.bodyToMono(new ParameterizedTypeReference<Map<String, Object>>() {})
+			.timeout(Duration.ofSeconds(30)) // 30초 타임아웃
+			.doOnSuccess(response -> log.info("OpenAI API call completed successfully"))
+			.doOnError(error -> handleAsyncError(error))
+			.map(this::extractContentFromResponse)
+			.onErrorReturn(createFallbackResponse())
+			.toFuture();
+	}
+	
+	/**
+	 * 요청 바디 생성
+	 */
+	private Map<String, Object> createRequestBody(String prompt) {
+		return Map.of(
 			"model", "gpt-4o",
 			"messages", new Object[]{
 				Map.of("role", "system", "content", 
@@ -35,29 +67,18 @@ public class OpenAiChatClient implements LlmClient {
 			"temperature", 0.3,
 			"response_format", Map.of("type", "json_object")
 		);
-
-		try {
-			Map<String, Object> response = openAiWebClient.post()
-				.uri("/chat/completions")
-				.body(BodyInserters.fromValue(requestBody))
-				.retrieve()
-				.bodyToMono(new ParameterizedTypeReference<Map<String, Object>>() {})
-				.block();
-
-			log.info("OpenAI API call completed successfully");
-			// 보안: 응답 내용은 debug 레벨에서도 로깅하지 않음 (민감정보 보호)
-
-			return extractContentFromResponse(response);
-		} catch (WebClientResponseException e) {
-			// HTTP 에러 상세 로깅 (민감정보 제외)
+	}
+	
+	/**
+	 * 비동기 에러 처리
+	 */
+	private void handleAsyncError(Throwable error) {
+		if (error instanceof WebClientResponseException webEx) {
 			log.error("OpenAI API HTTP error - Status: {}, Error: {}", 
-				e.getStatusCode(), 
-				sanitizeErrorMessage(e.getResponseBodyAsString()));
-			return createFallbackResponse();
-		} catch (Exception e) {
-			// 타임아웃 포함 일반적인 예외 처리
-			log.error("OpenAI API call failed: {}", e.getClass().getSimpleName());
-			return createFallbackResponse();
+				webEx.getStatusCode(), 
+				sanitizeErrorMessage(webEx.getResponseBodyAsString()));
+		} else {
+			log.error("OpenAI API async call failed: {}", error.getClass().getSimpleName());
 		}
 	}
 	
