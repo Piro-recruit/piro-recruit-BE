@@ -43,6 +43,10 @@ public class WebhookApplicationResponse {
     // AI 분석 결과
     private Map<String, Object> aiAnalysis;
 
+    // 평가 정보
+    private Double averageScore; // 평균 점수
+    private Integer evaluationCount; // 평가 개수
+
     // 메타데이터
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
@@ -68,6 +72,8 @@ public class WebhookApplicationResponse {
             .status(entity.getStatus().name())
             .errorMessage(entity.getErrorMessage())
             .aiAnalysis(entity.getAiAnalysis())
+            .averageScore(entity.getAverageScore())
+            .evaluationCount(entity.getEvaluationCount())
             .createdAt(entity.getCreatedAt())
             .updatedAt(entity.getUpdatedAt())
             .build();

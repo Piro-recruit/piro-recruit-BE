@@ -104,6 +104,13 @@ public class WebhookApplication extends BaseTimeEntity {
     @Column(nullable = false)
     private PassStatus passStatus = PassStatus.PENDING; // 합격 상태
 
+    // 평가 관련 필드들
+    @Column(name = "average_score")
+    private Double averageScore; // 평균 점수
+
+    @Column(name = "evaluation_count", nullable = false)
+    private Integer evaluationCount = 0; // 평가 개수
+
     // 연관된 평가들 (지원서 삭제 시 함께 삭제)
     @OneToMany(mappedBy = "application", cascade = CascadeType.ALL, orphanRemoval = true)
     private List<Evaluation> evaluations = new ArrayList<>();
@@ -174,6 +181,22 @@ public class WebhookApplication extends BaseTimeEntity {
 
     public void resetPassStatus() {
         this.passStatus = PassStatus.PENDING;
+    }
+
+    // 평가 점수 업데이트 메서드들
+    public void updateEvaluationStatistics(Double newAverageScore, Integer newEvaluationCount) {
+        this.averageScore = newAverageScore;
+        this.evaluationCount = newEvaluationCount;
+    }
+
+    public void incrementEvaluationCount() {
+        this.evaluationCount = this.evaluationCount + 1;
+    }
+
+    public void decrementEvaluationCount() {
+        if (this.evaluationCount > 0) {
+            this.evaluationCount = this.evaluationCount - 1;
+        }
     }
 
     // 웹훅 처리 상태 enum

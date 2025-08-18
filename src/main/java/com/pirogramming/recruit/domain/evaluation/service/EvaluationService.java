@@ -49,6 +49,7 @@ public class EvaluationService {
             .build();
 
         Evaluation savedEvaluation = evaluationRepository.save(evaluation);
+        updateApplicationAverageScore(application.getId());
         return new EvaluationResponse(savedEvaluation);
     }
 
@@ -62,6 +63,7 @@ public class EvaluationService {
         }
 
         evaluation.updateEvaluation(request.getScore(), request.getComment());
+        updateApplicationAverageScore(evaluation.getApplication().getId());
         return new EvaluationResponse(evaluation);
     }
 
@@ -74,7 +76,9 @@ public class EvaluationService {
             throw new IllegalStateException("본인이 작성한 평가만 삭제할 수 있습니다");
         }
 
+        Long applicationId = evaluation.getApplication().getId();
         evaluationRepository.delete(evaluation);
+        updateApplicationAverageScore(applicationId);
     }
 
     public EvaluationResponse getEvaluation(Long evaluationId) {
@@ -103,14 +107,12 @@ public class EvaluationService {
             .orElseThrow(() -> new IllegalArgumentException("지원서를 찾을 수 없습니다: " + applicationId));
 
         List<EvaluationResponse> evaluations = getEvaluationsByApplication(applicationId);
-        Double averageScore = evaluationRepository.findAverageScoreByApplicationId(applicationId);
-        Long evaluationCount = evaluationRepository.countByApplicationId(applicationId);
 
         return new ApplicationEvaluationSummaryResponse(
             applicationId,
             application.getApplicantName(),
-            averageScore,
-            evaluationCount,
+            application.getAverageScore(),
+            application.getEvaluationCount().longValue(),
             evaluations
         );
     }
@@ -118,5 +120,16 @@ public class EvaluationService {
     @Transactional
     public void deleteEvaluationsByApplication(Long applicationId) {
         evaluationRepository.deleteByApplicationId(applicationId);
+    }
+
+    private void updateApplicationAverageScore(Long applicationId) {
+        WebhookApplication application = webhookApplicationRepository.findById(applicationId)
+            .orElseThrow(() -> new IllegalArgumentException("지원서를 찾을 수 없습니다: " + applicationId));
+
+        Double averageScore = evaluationRepository.findAverageScoreByApplicationId(applicationId);
+        Long evaluationCount = evaluationRepository.countByApplicationId(applicationId);
+
+        application.updateEvaluationStatistics(averageScore, evaluationCount.intValue());
+        webhookApplicationRepository.save(application);
     }
 }
