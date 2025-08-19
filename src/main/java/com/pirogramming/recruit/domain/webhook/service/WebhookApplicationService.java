@@ -7,6 +7,8 @@ import java.util.Optional;
 import java.util.stream.Collectors;
 
 import com.pirogramming.recruit.domain.ai_summary.service.ApplicationSummaryService;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -292,6 +294,32 @@ public class WebhookApplicationService {
 
         List<WebhookApplication> saved = webhookApplicationRepository.saveAll(applications);
         log.info("일괄 합격 상태 변경: {} 건 -> {}", applications.size(), passStatus);
+
+        return saved;
+    }
+
+    // 점수 상위 N명 합격 상태 변경
+    @Transactional
+    public List<WebhookApplication> updatePassStatusForTopN(Integer topN, WebhookApplication.PassStatus passStatus) {
+        Pageable pageable = PageRequest.of(0, topN);
+        List<WebhookApplication> topApplications = webhookApplicationRepository.findTopByAverageScore(pageable);
+        
+        if (topApplications.isEmpty()) {
+            log.warn("평가된 지원서가 없습니다.");
+            return List.of();
+        }
+
+        for (WebhookApplication app : topApplications) {
+            switch (passStatus) {
+                case FIRST_PASS -> app.markAsFirstPass();
+                case FINAL_PASS -> app.markAsFinalPass();
+                case FAILED -> app.markAsPassFailed();
+                case PENDING -> app.resetPassStatus();
+            }
+        }
+
+        List<WebhookApplication> saved = webhookApplicationRepository.saveAll(topApplications);
+        log.info("점수 상위 {} 명 합격 상태 변경: {} -> {}", topN, topApplications.size(), passStatus);
 
         return saved;
     }
