@@ -31,7 +31,7 @@ public class IntegrationController {
     // 홈페이지 업데이트용 CSV 파일 생성
     @GetMapping("/export/applicants/csv")
     @Operation(summary = "지원자 CSV 내보내기",
-            description = "홈페이지 업데이트용 지원자 CSV 파일을 생성합니다. (name,phone,level,major,is_passed)")
+            description = "홈페이지 업데이트용 지원자 CSV 파일을 생성합니다. (name,phone,level,major,is_passed) - is_passed는 한글로 출력됩니다 (대기중, 불합격, 1차 합격, 최종 합격)")
     public ResponseEntity<String> exportApplicantsCsv(
             @Parameter(description = "구글 폼 ID (선택사항, 없으면 전체 지원자)")
             @RequestParam(required = false) Long googleFormId) {

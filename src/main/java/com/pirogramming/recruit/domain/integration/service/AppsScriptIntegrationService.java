@@ -54,9 +54,9 @@ public class AppsScriptIntegrationService {
 
             int level = app.getGoogleForm().getGeneration();
             int major = determineMajorStatus(app);
-            int isPassed = app.getPassStatus().getCsvValue();
+            String isPassed = escapeCSV(app.getPassStatus().getKoreanName());
 
-            csv.append(String.format("%s,%s,%d,%d,%d\n",
+            csv.append(String.format("%s,%s,%d,%d,%s\n",
                     name, phone, level, major, isPassed));
         }
 
@@ -115,9 +115,9 @@ public class AppsScriptIntegrationService {
             String phone = escapeCSV(extractPhoneFromFormData(app));
             int level = app.getGoogleForm().getGeneration();
             int major = determineMajorStatus(app);
-            int isPassed = app.getPassStatus().getCsvValue();
+            String isPassed = escapeCSV(app.getPassStatus().getKoreanName());
 
-            preview.append(String.format("%s,%s,%d,%d,%d\n",
+            preview.append(String.format("%s,%s,%d,%d,%s\n",
                     name, phone, level, major, isPassed));
         }
 
@@ -216,41 +216,50 @@ public class AppsScriptIntegrationService {
 
     // 유틸리티 메서드들
 
-    // formData에서 전화번호 추출
-    // 다양한 필드명으로 전화번호를 검색
+    // 전화번호 추출 (엔티티 필드 우선 사용)
     private String extractPhoneFromFormData(WebhookApplication app) {
-        Object phone = app.getFormDataValue("전화번호");
-        if (phone == null) phone = app.getFormDataValue("연락처");
-        if (phone == null) phone = app.getFormDataValue("휴대폰번호");
-        if (phone == null) phone = app.getFormDataValue("phone");
-        if (phone == null) phone = app.getFormDataValue("mobile");
-        if (phone == null) phone = app.getFormDataValue("핸드폰");
-        if (phone == null) phone = app.getFormDataValue("휴대폰");
-        if (phone == null) phone = app.getFormDataValue("연락처 번호");
-
-        String phoneStr = phone != null ? phone.toString().trim() : "";
+        // 엔티티의 phoneNumber 필드 우선 사용
+        String phoneStr = app.getPhoneNumber();
+        
+        // 엔티티 필드가 비어있으면 formData에서 fallback
+        if (phoneStr == null || phoneStr.trim().isEmpty()) {
+            Object phone = app.getFormDataValue("전화번호");
+            if (phone == null) phone = app.getFormDataValue("연락처");
+            if (phone == null) phone = app.getFormDataValue("휴대폰번호");
+            if (phone == null) phone = app.getFormDataValue("phone");
+            if (phone == null) phone = app.getFormDataValue("mobile");
+            if (phone == null) phone = app.getFormDataValue("핸드폰");
+            if (phone == null) phone = app.getFormDataValue("휴대폰");
+            if (phone == null) phone = app.getFormDataValue("연락처 번호");
+            
+            phoneStr = phone != null ? phone.toString().trim() : "";
+        }
 
         // 전화번호 형식 정리 (하이픈 추가)
-        if (!phoneStr.isEmpty() && !phoneStr.contains("-")) {
+        if (phoneStr != null && !phoneStr.isEmpty() && !phoneStr.contains("-")) {
             phoneStr = formatPhoneNumber(phoneStr);
         }
 
-        return phoneStr;
+        return phoneStr != null ? phoneStr : "";
     }
 
     // 전공 여부 판단 (0:비전공, 1:전공, 2:복수전공)
     private int determineMajorStatus(WebhookApplication app) {
-        // formData에서 전공 정보 추출
-        Object major = app.getFormDataValue("전공");
-        if (major == null) major = app.getFormDataValue("학과");
-        if (major == null) major = app.getFormDataValue("학부");
-        if (major == null) major = app.getFormDataValue("major");
-        if (major == null) major = app.getFormDataValue("전공과목");
-        if (major == null) major = app.getFormDataValue("소속학과");
+        // 엔티티의 major 필드 우선 사용 (전공자/비전공자 응답)
+        String majorStr = app.getMajor();
+        
+        // 엔티티 필드가 비어있으면 formData에서 fallback
+        if (majorStr == null || majorStr.trim().isEmpty()) {
+            Object major = app.getFormDataValue("전공");
+            if (major == null) major = app.getFormDataValue("전공여부");
+            if (major == null) major = app.getFormDataValue("major");
+            if (major == null) major = app.getFormDataValue("전공자");
+            
+            if (major == null) return 0; // 정보 없음 = 비전공으로 처리
+            majorStr = major.toString();
+        }
 
-        if (major == null) return 0; // 정보 없음 = 비전공으로 처리
-
-        String majorStr = major.toString().toLowerCase();
+        majorStr = majorStr.toLowerCase().trim();
 
         // 복수전공 키워드 체크
         if (majorStr.contains("복수") || majorStr.contains("double") ||
@@ -258,19 +267,19 @@ public class AppsScriptIntegrationService {
             return 2;
         }
 
-        // 전공 키워드 체크 (IT 관련 전공)
-        if (majorStr.contains("컴퓨터") || majorStr.contains("computer") ||
-                majorStr.contains("소프트웨어") || majorStr.contains("software") ||
-                majorStr.contains("정보") || majorStr.contains("information") ||
-                majorStr.contains("전산") || majorStr.contains("데이터") ||
-                majorStr.contains("ai") || majorStr.contains("인공지능") ||
-                majorStr.contains("프로그래밍") || majorStr.contains("programming") ||
-                majorStr.contains("개발") || majorStr.contains("development") ||
-                majorStr.contains("it") || majorStr.contains("공학")) {
+        // 전공자 키워드 체크
+        if (majorStr.contains("전공") || majorStr.contains("major") ||
+                majorStr.equals("1") || majorStr.equals("yes") || majorStr.equals("y")) {
             return 1; // 전공자
         }
 
-        return 0; // 비전공자
+        // 비전공자 키워드 체크
+        if (majorStr.contains("비전공") || majorStr.contains("non-major") ||
+                majorStr.equals("0") || majorStr.equals("no") || majorStr.equals("n")) {
+            return 0; // 비전공자
+        }
+
+        return 0; // 기본값: 비전공자
     }
 
     // 전화번호 형식 정리
