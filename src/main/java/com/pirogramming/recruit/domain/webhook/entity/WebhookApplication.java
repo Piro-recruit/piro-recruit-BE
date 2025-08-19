@@ -71,7 +71,7 @@ public class WebhookApplication extends BaseTimeEntity {
     private String grade; // 학년
 
     @Column
-    private String major; // 전공
+    private String major; // 전공 여부(전공자/비전공자)
 
     @Column
     private String phoneNumber; // 전화번호
@@ -217,19 +217,25 @@ public class WebhookApplication extends BaseTimeEntity {
 
     // 합격 상태 enum
     public enum PassStatus {
-        PENDING(0),     // 대기중/미정
-        FAILED(0),      // 불합격
-        FIRST_PASS(1),  // 1차 합격
-        FINAL_PASS(2);  // 최종 합격
+        PENDING(0, "대기중"),     // 대기중/미정
+        FAILED(0, "불합격"),      // 불합격
+        FIRST_PASS(1, "1차 합격"),  // 1차 합격
+        FINAL_PASS(2, "최종 합격");  // 최종 합격
 
         private final int csvValue;
+        private final String koreanName;
 
-        PassStatus(int csvValue) {
+        PassStatus(int csvValue, String koreanName) {
             this.csvValue = csvValue;
+            this.koreanName = koreanName;
         }
 
         public int getCsvValue() {
             return csvValue;
+        }
+
+        public String getKoreanName() {
+            return koreanName;
         }
     }
 }
