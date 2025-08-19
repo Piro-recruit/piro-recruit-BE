@@ -53,7 +53,9 @@ com.pirogramming.recruit
 ├── domain/                 # Domain-specific modules
 │   ├── admin/             # Admin authentication & authorization
 │   ├── ai_summary/        # OpenAI integration for application processing
+│   ├── evaluation/        # Application evaluation system
 │   ├── googleform/        # Google Form integration
+│   ├── integration/       # Apps Script integration services
 │   ├── mail/              # Email services and subscriber management
 │   └── webhook/           # Webhook application processing
 │       ├── controller/    # REST API endpoints
@@ -65,7 +67,8 @@ com.pirogramming.recruit
     ├── config/          # Security, JPA, Swagger, WebClient configuration
     ├── exception/       # Global exception handling with ApiRes wrapper
     ├── entity/          # Base entities (BaseTimeEntity)
-    └── jwt/            # JWT authentication and token management
+    ├── jwt/            # JWT authentication and token management
+    └── security/        # Security annotations and filters
 ```
 
 ### Key Technologies
@@ -136,7 +139,9 @@ fix auth: resolve authentication error on login
 ### Core Domains
 - **admin**: Admin authentication/authorization with JWT and refresh token support
 - **ai_summary**: OpenAI integration for application processing and summarization
+- **evaluation**: Application evaluation system with score tracking (0-100) and comments
 - **googleform**: Google Form integration for handling external form submissions
+- **integration**: Apps Script integration services for external webhook processing
 - **mail**: Email service with bulk/single mail capabilities and subscriber management
 - **webhook**: Webhook-based application processing system
 
@@ -152,8 +157,20 @@ fix auth: resolve authentication error on login
 - Swagger UI available at `/swagger-ui.html`
 - Uses CommonMark for Markdown processing
 - Docker environment requires `.env` file with database credentials and API keys
+- Current recruitment level configured as 25 (configurable via `recruitment.current-level`)
+
+## Required Environment Variables
+The application requires the following environment variables in `.env` file:
+- `DB_USERNAME`, `DB_PASSWORD`: PostgreSQL database credentials
+- `JWT_SECRET`: JWT token signing secret
+- `ROOT_ADMIN_LOGIN_CODE`: Root admin authentication code
+- `OPENAI_API_KEY`: OpenAI API key for AI summary features
+- `WEBHOOK_API_KEY`: API key for webhook authentication
+- `STMP_USER_ID`, `STMP_PASSWORD`: Gmail SMTP credentials for email service
+- `ADMIN_TEST_EMAIL`: Admin test email address (optional, defaults to rlarbdlf222@naver.com)
 
 ## Development Guidelines
 - ALWAYS prefer editing existing files over creating new ones
 - NEVER create files unless absolutely necessary for the task
 - NEVER proactively create documentation files (*.md) or README files unless explicitly requested
+

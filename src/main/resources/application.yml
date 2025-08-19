@@ -71,3 +71,14 @@ webhook:
 # 리크루팅 관련 설정
 recruitment:
   current-level: 25  # 현재 리크루팅 기수 (25기)
+
+# AI 배치 처리 설정
+ai:
+  batch:
+    processing:
+      enabled: true        # 배치 처리 활성화 여부
+      interval: 5          # 배치 처리 주기 (초)
+      size: 8              # 한 번에 처리할 작업 수 (OpenAI Semaphore 10개 고려)
+      retry:
+        delay: 300         # 실패 작업 재시도 대기 시간 (초)
+        max-attempts: 3    # 최대 재시도 횟수

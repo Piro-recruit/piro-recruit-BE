@@ -1,13 +1,18 @@
 package com.pirogramming.recruit.domain.ai_summary.infra;
 
+import java.time.Duration;
 import java.util.Map;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.Semaphore;
 
 import org.springframework.core.ParameterizedTypeReference;
 import org.springframework.stereotype.Component;
 import org.springframework.web.reactive.function.BodyInserters;
 import org.springframework.web.reactive.function.client.WebClient;
+import org.springframework.web.reactive.function.client.WebClientResponseException;
 
 import com.pirogramming.recruit.domain.ai_summary.port.LlmClient;
+import com.pirogramming.recruit.domain.ai_summary.util.FallbackResponseUtil;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -18,10 +23,92 @@ import lombok.extern.slf4j.Slf4j;
 public class OpenAiChatClient implements LlmClient {
 
 	private final WebClient openAiWebClient;
+	
+	// OpenAI API 동시 호출 제한 (40개 중 10개만 동시 처리)
+	private final Semaphore openAiSemaphore = new Semaphore(10);
+	
+	// API 호출 통계
+	private volatile long totalRequests = 0;
+	private volatile long successfulRequests = 0;
+	private volatile long failedRequests = 0;
 
 	@Override
 	public String chat(String prompt) {
-		Map<String, Object> requestBody = Map.of(
+		// 기존 동기 방식 유지 (호환성)
+		try {
+			return chatAsync(prompt).get();
+		} catch (Exception e) {
+			log.error("Synchronous chat call failed: {}", e.getClass().getSimpleName());
+			return FallbackResponseUtil.createFallbackJson();
+		}
+	}
+	
+	@Override
+	public CompletableFuture<String> chatAsync(String prompt) {
+		totalRequests++;
+		
+		return CompletableFuture.supplyAsync(() -> {
+			try {
+				// Semaphore로 동시 호출 제한
+				openAiSemaphore.acquire();
+				log.debug("Acquired OpenAI API semaphore. Available permits: {}", openAiSemaphore.availablePermits());
+				
+				Map<String, Object> requestBody = createRequestBody(prompt);
+				
+				return openAiWebClient.post()
+					.uri("/chat/completions")
+					.body(BodyInserters.fromValue(requestBody))
+					.retrieve()
+					.bodyToMono(new ParameterizedTypeReference<Map<String, Object>>() {})
+					.timeout(Duration.ofSeconds(45)) // 타임아웃 45초로 증가
+					.doOnSuccess(response -> {
+						successfulRequests++;
+						log.debug("OpenAI API call completed successfully. Success rate: {}/{}", 
+							successfulRequests, totalRequests);
+					})
+					.doOnError(error -> {
+						failedRequests++;
+						handleAsyncError(error);
+					})
+					.map(this::extractContentFromResponse)
+					.onErrorReturn(FallbackResponseUtil.createFallbackJson())
+					.block(); // CompletableFuture 내부에서 block() 사용
+					
+			} catch (InterruptedException e) {
+				Thread.currentThread().interrupt();
+				failedRequests++;
+				log.error("OpenAI API call interrupted");
+				return FallbackResponseUtil.createFallbackJson();
+			} catch (Exception e) {
+				failedRequests++;
+				log.error("OpenAI API call failed with unexpected error", e);
+				return FallbackResponseUtil.createFallbackJson();
+			} finally {
+				openAiSemaphore.release();
+				log.debug("Released OpenAI API semaphore. Available permits: {}", openAiSemaphore.availablePermits());
+			}
+		});
+	}
+	
+	/**
+	 * API 호출 통계 조회
+	 */
+	public Map<String, Object> getApiStats() {
+		return Map.of(
+			"totalRequests", totalRequests,
+			"successfulRequests", successfulRequests,
+			"failedRequests", failedRequests,
+			"successRate", totalRequests > 0 ? (double) successfulRequests / totalRequests * 100 : 0,
+			"availablePermits", openAiSemaphore.availablePermits(),
+			"queueLength", openAiSemaphore.getQueueLength()
+		);
+	}
+	
+	/**
+	 * 요청 바디 생성
+	 */
+	private Map<String, Object> createRequestBody(String prompt) {
+		return Map.of(
 			"model", "gpt-4o",
 			"messages", new Object[]{
 				Map.of("role", "system", "content", 
@@ -34,27 +121,28 @@ public class OpenAiChatClient implements LlmClient {
 			"temperature", 0.3,
 			"response_format", Map.of("type", "json_object")
 		);
-
-		try {
-			Map<String, Object> response = openAiWebClient.post()
-				.uri("/chat/completions")
-				.body(BodyInserters.fromValue(requestBody))
-				.retrieve()
-				.bodyToMono(new ParameterizedTypeReference<Map<String, Object>>() {})
-				.block();
-
-			log.info("GPT response received successfully");
-			log.debug("GPT response details: {}", response);
-
-			return extractContentFromResponse(response);
-		} catch (Exception e) {
-			log.error("Failed to call OpenAI API", e);
-			return createFallbackResponse();
+	}
+	
+	/**
+	 * 비동기 에러 처리
+	 */
+	private void handleAsyncError(Throwable error) {
+		if (error instanceof WebClientResponseException webEx) {
+			log.error("OpenAI API HTTP error - Status: {}, Error: {}", 
+				webEx.getStatusCode(), 
+				sanitizeErrorMessage(webEx.getResponseBodyAsString()));
+		} else {
+			log.error("OpenAI API async call failed: {}", error.getClass().getSimpleName());
 		}
 	}
 	
 	private String extractContentFromResponse(Map<String, Object> response) {
 		try {
+			// 입력 검증
+			if (response == null || response.isEmpty()) {
+				throw new RuntimeException("Empty response from OpenAI");
+			}
+			
 			@SuppressWarnings("unchecked")
 			var choices = (java.util.List<Map<String, Object>>) response.get("choices");
 			if (choices == null || choices.isEmpty()) {
@@ -72,23 +160,51 @@ public class OpenAiChatClient implements LlmClient {
 				throw new RuntimeException("No content in message");
 			}
 			
-			return content.toString();
+			String contentStr = content.toString();
+			
+			// 콘텐츠 내용 기본 검증
+			if (contentStr.trim().isEmpty()) {
+				throw new RuntimeException("Empty content in response");
+			}
+			
+			// 응답 길이 제한 (DoS 방지)
+			if (contentStr.length() > 10000) {
+				log.warn("OpenAI response too long, truncating: {} chars", contentStr.length());
+				contentStr = contentStr.substring(0, 10000);
+			}
+			
+			return contentStr;
+			
+		} catch (ClassCastException e) {
+			log.error("Invalid response structure from OpenAI: type mismatch");
+			throw new RuntimeException("Invalid response structure from OpenAI", e);
 		} catch (Exception e) {
-			log.error("Failed to parse GPT response structure", e);
+			log.error("Failed to parse OpenAI response: {}", e.getClass().getSimpleName());
 			throw new RuntimeException("Invalid response structure from OpenAI", e);
 		}
 	}
 	
-	private String createFallbackResponse() {
-		return """
-			{
-			  "overallSummary": "OpenAI API 호출 중 오류가 발생하여 자동 분석을 완료할 수 없습니다.",
-			  "keyStrengths": ["API 오류", "수동 검토 필요"],
-			  "technicalSkills": ["정보 없음"],
-			  "experience": "OpenAI 서비스 오류로 인해 경험 분석을 완료할 수 없습니다.",
-			  "motivation": "수동으로 검토해주세요.",
-			  "scoreOutOf100": 0
-			}
-			""";
+	/**
+	 * 안전한 에러 메시지 정제 (민감정보 제거)
+	 */
+	private String sanitizeErrorMessage(String errorMessage) {
+		if (errorMessage == null || errorMessage.isEmpty()) {
+			return "No error details available";
+		}
+		
+		// API 키, 토큰 등 민감정보 제거
+		String sanitized = errorMessage
+			.replaceAll("Bearer [A-Za-z0-9\\-_.]+", "Bearer [REDACTED]")
+			.replaceAll("sk-[A-Za-z0-9]+", "[API_KEY_REDACTED]")
+			.replaceAll("Authorization: .*", "Authorization: [REDACTED]")
+			.replaceAll("token[\\s:=]+[A-Za-z0-9\\-_.]+", "token=[REDACTED]");
+		
+		// 길이 제한 (500자)
+		if (sanitized.length() > 500) {
+			sanitized = sanitized.substring(0, 497) + "...";
+		}
+		
+		return sanitized;
 	}
+	
 }

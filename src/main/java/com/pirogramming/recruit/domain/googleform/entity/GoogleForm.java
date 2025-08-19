@@ -1,5 +1,6 @@
 package com.pirogramming.recruit.domain.googleform.entity;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.pirogramming.recruit.global.entity.BaseTimeEntity;
 import com.pirogramming.recruit.domain.webhook.entity.WebhookApplication;
 import jakarta.persistence.*;
@@ -51,6 +52,7 @@ public class GoogleForm extends BaseTimeEntity {
 
     // 연관된 지원서들 (구글 폼 삭제 시 함께 삭제)
     @OneToMany(mappedBy = "googleForm", cascade = CascadeType.ALL, orphanRemoval = true)
+    @JsonIgnore  // JSON 직렬화 시 순환참조 방지
     private List<WebhookApplication> applications = new ArrayList<>();
 
     @Builder

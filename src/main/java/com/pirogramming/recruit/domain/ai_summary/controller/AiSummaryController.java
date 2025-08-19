@@ -1,6 +1,8 @@
 package com.pirogramming.recruit.domain.ai_summary.controller;
 
 import java.util.List;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.TimeUnit;
 
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -11,7 +13,13 @@ import org.springframework.web.bind.annotation.RestController;
 import com.pirogramming.recruit.domain.ai_summary.dto.ApplicationQuestionDto;
 import com.pirogramming.recruit.domain.ai_summary.dto.ApplicationSummaryDto;
 import com.pirogramming.recruit.domain.ai_summary.service.ApplicationProcessingService;
+import com.pirogramming.recruit.domain.ai_summary.util.InputValidationUtil;
 import com.pirogramming.recruit.global.exception.ApiRes;
+import com.pirogramming.recruit.global.exception.code.ErrorCode;
+import com.pirogramming.recruit.global.security.RequireAdmin;
+import jakarta.validation.Valid;
+import jakarta.validation.constraints.Size;
+import org.springframework.http.HttpStatus;
 
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.media.Content;
@@ -21,8 +29,10 @@ import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 
 @Tag(name = "AI 지원서 요약", description = "대학생 IT 개발 동아리 지원서 AI 자동 분석 및 평가 API")
+@Slf4j
 @RestController
 @RequestMapping("/api/ai-summary")
 @RequiredArgsConstructor
@@ -88,6 +98,7 @@ public class AiSummaryController {
 		)
 	})
 	@GetMapping("/test")
+	@RequireAdmin
 	public ApiRes<ApplicationSummaryDto> testSummary() {
 		ApplicationSummaryDto summary = applicationProcessingService.processApplicationWithDummyData();
 		return ApiRes.success(summary, "지원서 요약이 성공적으로 생성되었습니다.");
@@ -126,64 +137,30 @@ public class AiSummaryController {
 		)
 	})
 	@PostMapping("/analyze")
+	@RequireAdmin
 	public ApiRes<ApplicationSummaryDto> analyzeDynamicApplication(
 		@io.swagger.v3.oas.annotations.parameters.RequestBody(
-			description = "지원서 문항과 답변 목록",
+			description = "지원서 문항과 답변 목록 (최대 20개)",
 			required = true,
 			content = @Content(
 				mediaType = "application/json",
 				schema = @Schema(implementation = ApplicationQuestionDto.class),
 				examples = {
 					@ExampleObject(
-						name = "컴공과 전공자 지원서",
+						name = "실제 지원서 예시",
 						value = """
 							[
 							  {
-							    "question": "학과 및 학년",
-							    "answer": "컴퓨터공학과 2학년"
+							    "question": "1. 본인의 가치관, 성격 등을 포함한 자기소개와 피로그래밍에 지원한 동기 및 목표를 적어주세요",
+							    "answer": "안녕하세요. 컴퓨터공학을 전공하고 있는 학생입니다. 웹 개발에 관심이 많아 피로그래밍에 지원하게 되었습니다."
 							  },
 							  {
-							    "question": "자기소개서",
-							    "answer": "안녕하세요. 웹 개발에 관심이 많은 컴공과 2학년 학생입니다. 혼자 공부하다가 팀원들과 함께 프로젝트를 진행해보고 싶어 지원하게 되었습니다."
+							    "question": "2. 협업을 진행하며 겪었던 어려움과 이를 극복한 경험을 구체적으로 작성해 주세요",
+							    "answer": "팀 프로젝트에서 의견 충돌이 있었지만, 서로의 의견을 듣고 타협점을 찾아 해결했습니다."
 							  },
 							  {
-							    "question": "프로그래밍 경험",
-							    "answer": "C언어, Java 수업을 들었고, 개인적으로 Python과 JavaScript를 공부했습니다. 간단한 웹사이트를 만들어본 경험이 있습니다."
-							  },
-							  {
-							    "question": "팀 프로젝트 경험",
-							    "answer": "학교 과제로 4명이서 도서관 관리 시스템을 만들었습니다. 제가 데이터베이스 설계와 백엔드를 담당했습니다."
-							  },
-							  {
-							    "question": "지원동기",
-							    "answer": "혼자 공부하는 것보다 팀원들과 함께 더 큰 프로젝트를 만들어보고 싶습니다. 서로 가르쳐주고 배우면서 성장하고 싶어요."
-							  }
-							]
-							"""
-					),
-					@ExampleObject(
-						name = "비전공자 지원서",
-						value = """
-							[
-							  {
-							    "question": "학과 및 학년",
-							    "answer": "경영학과 3학년"
-							  },
-							  {
-							    "question": "자기소개서",
-							    "answer": "경영학과지만 IT 분야에 관심이 많아 독학으로 프로그래밍을 공부하고 있습니다. 열정과 끈기로 부족한 부분을 채워나가겠습니다."
-							  },
-							  {
-							    "question": "프로그래밍 학습 경험",
-							    "answer": "온라인 강의로 HTML, CSS, JavaScript를 6개월간 학습했습니다. 개인 포트폴리오 웹사이트를 만들고 GitHub에 올렸습니다."
-							  },
-							  {
-							    "question": "동아리 활동 경험",
-							    "answer": "창업동아리에서 기획팀으로 활동하며 팀원들과 협업하는 방법을 배웠습니다. 의견 충돌이 있을 때 중재 역할을 맡기도 했습니다."
-							  },
-							  {
-							    "question": "지원동기",
-							    "answer": "비전공자이지만 IT에 대한 열정이 있습니다. 기술적으로 배우고 싶고, 다양한 배경의 사람들과 협업하며 성장하고 싶습니다."
+							    "question": "3. 평소 개발을 공부하며 만들어 보고 싶었던 웹사이트는 어떻게 되나요?",
+							    "answer": "사용자들이 쉽게 정보를 공유할 수 있는 커뮤니티 사이트를 만들어보고 싶습니다."
 							  }
 							]
 							"""
@@ -191,8 +168,67 @@ public class AiSummaryController {
 				}
 			)
 		)
-		@RequestBody List<ApplicationQuestionDto> questions) {
-		ApplicationSummaryDto summary = applicationProcessingService.processApplication(questions);
-		return ApiRes.success(summary, "동적 지원서 요약이 성공적으로 생성되었습니다.");
+		@Valid @RequestBody @Size(max = 20, message = "질문은 최대 20개까지 가능합니다") List<@Valid ApplicationQuestionDto> questions) {
+		
+		// 입력 검증
+		InputValidationUtil.validateQuestionList(questions);
+		InputValidationUtil.validateQuestionContent(questions);
+		
+		// 비동기 처리로 성능 개선
+		try {
+			ApplicationSummaryDto summary = applicationProcessingService
+				.processApplicationAsync(questions)
+				.get(45, TimeUnit.SECONDS); // 45초 타임아웃
+			return ApiRes.success(summary, "동적 지원서 요약이 성공적으로 생성되었습니다.");
+		} catch (java.util.concurrent.TimeoutException e) {
+			log.error("AI processing timeout occurred");
+			return ApiRes.failure(HttpStatus.REQUEST_TIMEOUT, 
+				"AI 분석 시간이 초과되었습니다. 잠시 후 다시 시도해주세요.", 
+				ErrorCode.INVALID_ARGUMENT);
+		} catch (Exception e) {
+			log.error("AI processing failed", e);
+			return ApiRes.failure(HttpStatus.INTERNAL_SERVER_ERROR, 
+				"AI 분석 중 오류가 발생했습니다.", 
+				ErrorCode.INVALID_ARGUMENT);
+		}
+	}
+	
+	@Operation(
+		summary = "배치 지원서 분석 (비동기)",
+		description = "다중 지원서를 병렬로 처리하여 성능을 향상시킵니다. 최대 10개까지 동시 처리 가능합니다."
+	)
+	@PostMapping("/batch-analyze")
+	@RequireAdmin
+	public ApiRes<List<ApplicationSummaryDto>> analyzeBatchApplications(
+		@io.swagger.v3.oas.annotations.parameters.RequestBody(
+			description = "지원서 목록 (최대 10개)",
+			required = true
+		)
+		@Valid @RequestBody @Size(max = 10, message = "배치는 최대 10개까지 가능합니다") 
+		List<@Valid @Size(max = 20, message = "질문은 최대 20개까지 가능합니다") 
+			List<@Valid ApplicationQuestionDto>> applicationsList) {
+		
+		if (applicationsList == null || applicationsList.isEmpty()) {
+			return ApiRes.failure(HttpStatus.BAD_REQUEST, "지원서 목록이 비어있습니다.", ErrorCode.INVALID_ARGUMENT);
+		}
+		
+		try {
+			List<ApplicationSummaryDto> summaries = applicationProcessingService
+				.processBatchApplicationsAsync(applicationsList)
+				.get(120, TimeUnit.SECONDS); // 2분 타임아웃 (배치는 더 여유있게)
+			
+			return ApiRes.success(summaries, String.format("%d개 지원서 배치 분석이 완료되었습니다.", summaries.size()));
+			
+		} catch (java.util.concurrent.TimeoutException e) {
+			log.error("Batch AI processing timeout occurred for {} applications", applicationsList.size());
+			return ApiRes.failure(HttpStatus.REQUEST_TIMEOUT, 
+				"배치 AI 분석 시간이 초과되었습니다. 개수를 줄이거나 잠시 후 다시 시도해주세요.", 
+				ErrorCode.INVALID_ARGUMENT);
+		} catch (Exception e) {
+			log.error("Batch AI processing failed for {} applications", applicationsList.size(), e);
+			return ApiRes.failure(HttpStatus.INTERNAL_SERVER_ERROR, 
+				"배치 AI 분석 중 오류가 발생했습니다.", 
+				ErrorCode.INVALID_ARGUMENT);
+		}
 	}
 }
