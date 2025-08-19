@@ -19,11 +19,12 @@ import com.pirogramming.recruit.domain.webhook.entity.WebhookApplication;
 import com.pirogramming.recruit.domain.webhook.service.WebhookApplicationService;
 import com.pirogramming.recruit.global.exception.ApiRes;
 import com.pirogramming.recruit.global.exception.code.ErrorCode;
+import com.pirogramming.recruit.global.security.RequireAdmin;
+import com.pirogramming.recruit.global.security.RequireRoot;
 
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.tags.Tag;
-import com.pirogramming.recruit.global.security.RequireAdmin;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -312,6 +313,43 @@ public class WebhookApplicationController {
                 webhookApplicationService.getStatusStatisticsByGoogleForm(googleFormId);
 
         return ResponseEntity.ok(ApiRes.success(statistics, "구글 폼 " + googleFormId + "의 상태별 통계를 조회했습니다."));
+    }
+
+    // 단건 지원서 상태 변경
+    @PostMapping("/{id}/status")
+    @RequireRoot
+    @Operation(summary = "단건 지원서 상태 변경", description = "특정 지원서의 합격 상태를 변경합니다. (PENDING: 대기중, FIRST_PASS: 1차 합격, FINAL_PASS: 2차 합격, FAILED: 불합격)")
+    public ResponseEntity<ApiRes<WebhookApplicationResponse>> updatePassStatus(
+            @Parameter(description = "지원서 ID") @PathVariable Long id,
+            @Parameter(description = "변경할 합격 상태 (PENDING, FIRST_PASS, FINAL_PASS, FAILED)") 
+            @RequestParam WebhookApplication.PassStatus passStatus) {
+
+        WebhookApplication updatedApplication = webhookApplicationService.updatePassStatus(id, passStatus);
+
+        return ResponseEntity.ok(
+                ApiRes.success(WebhookApplicationResponse.from(updatedApplication), 
+                        "지원서 상태가 " + passStatus + "로 변경되었습니다.")
+        );
+    }
+
+    // 일괄 지원서 상태 변경 (점수 상위 N명)
+    @PostMapping("/bulk-status")
+    @RequireRoot
+    @Operation(summary = "일괄 지원서 상태 변경", description = "점수 상위 N명의 지원서 상태를 일괄 변경합니다. (root 권한 필요)")
+    public ResponseEntity<ApiRes<List<WebhookApplicationResponse>>> updatePassStatusBulk(
+            @Parameter(description = "변경할 상위 인원 수") @RequestParam Integer topN,
+            @Parameter(description = "변경할 합격 상태 (PENDING, FIRST_PASS, FINAL_PASS, FAILED)") 
+            @RequestParam WebhookApplication.PassStatus passStatus) {
+
+        List<WebhookApplication> updatedApplications = webhookApplicationService.updatePassStatusForTopN(topN, passStatus);
+
+        return ResponseEntity.ok(
+                ApiRes.success(
+                        updatedApplications.stream()
+                                .map(WebhookApplicationResponse::from)
+                                .collect(java.util.stream.Collectors.toList()),
+                        "상위 " + topN + "명의 지원서 상태가 " + passStatus + "로 변경되었습니다.")
+        );
     }
 
     // 웹훅 연결 테스트용 엔드포인트

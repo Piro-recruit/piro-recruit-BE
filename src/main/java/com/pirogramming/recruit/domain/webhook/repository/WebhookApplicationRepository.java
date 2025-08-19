@@ -3,6 +3,7 @@ package com.pirogramming.recruit.domain.webhook.repository;
 import java.util.List;
 import java.util.Optional;
 
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
@@ -106,5 +107,9 @@ public interface WebhookApplicationRepository extends JpaRepository<WebhookAppli
 
     // 구글 폼별 + 합격 상태별 조회
     List<WebhookApplication> findByGoogleFormIdAndPassStatus(Long googleFormId, WebhookApplication.PassStatus passStatus);
+
+    // 평균 점수 상위 N명 조회 (평가가 있는 지원서만)
+    @Query("SELECT w FROM WebhookApplication w WHERE w.averageScore IS NOT NULL AND w.evaluationCount > 0 ORDER BY w.averageScore DESC")
+    List<WebhookApplication> findTopByAverageScore(Pageable pageable);
 
 }
