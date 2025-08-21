@@ -352,6 +352,41 @@ public class WebhookApplicationController {
         );
     }
 
+    // 구글 폼별 합격 상태별 지원서 조회
+    @GetMapping("/google-form/{googleFormId}/by-pass-status")
+    @RequireAdmin
+    @Operation(summary = "구글 폼별 합격 상태별 지원서 조회", description = "특정 구글 폼에서 합격 상태를 기준으로 지원서를 조회합니다.")
+    public ResponseEntity<ApiRes<List<WebhookApplicationResponse>>> getApplicationsByGoogleFormAndPassStatus(
+            @Parameter(description = "구글 폼 ID") @PathVariable Long googleFormId,
+            @Parameter(description = "합격 상태 (PENDING, FIRST_PASS, FINAL_PASS, FAILED)")
+            @RequestParam WebhookApplication.PassStatus passStatus) {
+
+        List<WebhookApplication> applications = 
+                webhookApplicationService.getApplicationsByGoogleFormAndPassStatus(googleFormId, passStatus);
+
+        List<WebhookApplicationResponse> responses = applications.stream()
+                .map(WebhookApplicationResponse::from)
+                .collect(java.util.stream.Collectors.toList());
+
+        return ResponseEntity.ok(
+                ApiRes.success(responses,
+                        "구글 폼 " + googleFormId + "의 " + passStatus + " 상태 지원서 " + responses.size() + "개를 조회했습니다.")
+        );
+    }
+
+    // 구글 폼별 합격 상태 통계 조회
+    @GetMapping("/google-form/{googleFormId}/pass-statistics")
+    @RequireAdmin
+    @Operation(summary = "구글 폼별 합격 상태 통계 조회", description = "특정 구글 폼의 합격 상태별 통계를 조회합니다.")
+    public ResponseEntity<ApiRes<Map<WebhookApplication.PassStatus, Long>>> getPassStatusStatisticsByGoogleForm(
+            @Parameter(description = "구글 폼 ID") @PathVariable Long googleFormId) {
+
+        Map<WebhookApplication.PassStatus, Long> statistics =
+                webhookApplicationService.getPassStatusStatisticsByGoogleForm(googleFormId);
+
+        return ResponseEntity.ok(ApiRes.success(statistics, "구글 폼 " + googleFormId + "의 합격 상태별 통계를 조회했습니다."));
+    }
+
     // 웹훅 연결 테스트용 엔드포인트
     @PostMapping("/test")
     @Operation(summary = "웹훅 연결 테스트", description = "Apps Script와의 연결을 테스트하기 위한 엔드포인트입니다.")
