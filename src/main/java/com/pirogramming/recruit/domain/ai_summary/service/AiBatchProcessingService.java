@@ -17,6 +17,7 @@ import org.springframework.stereotype.Service;
 
 import com.pirogramming.recruit.domain.ai_summary.entity.ApplicationSummary;
 import com.pirogramming.recruit.domain.ai_summary.repository.ApplicationSummaryRepository;
+import com.pirogramming.recruit.domain.googleform.entity.FormStatus;
 import com.pirogramming.recruit.domain.googleform.repository.GoogleFormRepository;
 
 import lombok.RequiredArgsConstructor;
@@ -96,7 +97,7 @@ public class AiBatchProcessingService {
     public void processPendingBatch() {
         try {
             // 활성화된 구글 폼이 없으면 스킵 (리쿠르팅 기간이 아님)
-            if (!googleFormRepository.existsByIsActiveTrue()) {
+            if (!googleFormRepository.existsByStatus(FormStatus.ACTIVE)) {
                 log.debug("No active Google Form found, skipping AI batch processing");
                 return;
             }
@@ -156,7 +157,7 @@ public class AiBatchProcessingService {
     public void processFailedRetries() {
         try {
             // 활성화된 구글 폼이 없으면 스킵 (리쿠르팅 기간이 아님)
-            if (!googleFormRepository.existsByIsActiveTrue()) {
+            if (!googleFormRepository.existsByStatus(FormStatus.ACTIVE)) {
                 log.debug("No active Google Form found, skipping retry processing");
                 return;
             }
@@ -189,7 +190,7 @@ public class AiBatchProcessingService {
     public void recoverTimedOutTasks() {
         try {
             // 활성화된 구글 폼이 없으면 스킵 (리쿠르팅 기간이 아님)
-            if (!googleFormRepository.existsByIsActiveTrue()) {
+            if (!googleFormRepository.existsByStatus(FormStatus.ACTIVE)) {
                 log.debug("No active Google Form found, skipping timeout recovery");
                 return;
             }

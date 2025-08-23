@@ -1,6 +1,8 @@
 package com.pirogramming.recruit.domain.googleform.service;
 
 import com.pirogramming.recruit.domain.googleform.entity.GoogleForm;
+import com.pirogramming.recruit.domain.googleform.entity.FormStatus;
+import com.pirogramming.recruit.domain.googleform.event.GoogleFormEventPublisher;
 import com.pirogramming.recruit.domain.googleform.repository.GoogleFormRepository;
 import com.pirogramming.recruit.global.exception.code.ErrorCode;
 import com.pirogramming.recruit.global.exception.entity_exception.DuplicateResourceException;
@@ -21,10 +23,11 @@ import java.util.Optional;
 public class GoogleFormService {
 
     private final GoogleFormRepository googleFormRepository;
+    private final GoogleFormEventPublisher eventPublisher;
 
     // 현재 활성화된 구글 폼 조회
     public Optional<GoogleForm> getActiveGoogleForm() {
-        return googleFormRepository.findByIsActiveTrue();
+        return googleFormRepository.findByStatus(FormStatus.ACTIVE);
     }
 
     // 현재 활성화된 구글 폼 조회(필수)
@@ -35,7 +38,7 @@ public class GoogleFormService {
 
     // 활성화된 구글 폼 존재 여부 확인
     public boolean hasActiveGoogleForm() {
-        return googleFormRepository.existsByIsActiveTrue();
+        return googleFormRepository.existsByStatus(FormStatus.ACTIVE);
     }
 
     // ID로 구글 폼 조회
@@ -76,7 +79,12 @@ public class GoogleFormService {
             throw new DuplicateResourceException("구글 폼 ID", googleForm.getFormId());
         }
 
-        return googleFormRepository.save(googleForm);
+        GoogleForm savedGoogleForm = googleFormRepository.save(googleForm);
+        
+        // 생성 이벤트 발행
+        eventPublisher.publishCreated(savedGoogleForm);
+        
+        return savedGoogleForm;
     }
 
     // 구글 폼 활성화 (기존 활성화된 것은 비활성화)
@@ -88,18 +96,37 @@ public class GoogleFormService {
         GoogleForm targetGoogleForm = getGoogleFormByIdRequired(googleFormId);
         
         // 이미 활성화되어 있다면 그대로 반환
-        if (Boolean.TRUE.equals(targetGoogleForm.getIsActive())) {
+        if (targetGoogleForm.isActive()) {
             log.info("구글 폼이 이미 활성화되어 있음: {}", googleFormId);
             return targetGoogleForm;
         }
 
-        // 모든 구글 폼 비활성화 (원자적 일괄 업데이트)
-        int deactivatedCount = googleFormRepository.deactivateAllGoogleForms();
+        // 비즈니스 규칙 검증
+        try {
+            targetGoogleForm.validateCanActivate();
+        } catch (IllegalStateException e) {
+            log.warn("구글 폼 활성화 실패 - 비즈니스 규칙 위반: {}", e.getMessage());
+            throw new RecruitException(HttpStatus.BAD_REQUEST, ErrorCode.GOOGLE_FORM_VALIDATION_FAILED, e.getMessage());
+        }
+
+        if (targetGoogleForm.isClosed()) {
+            log.info("마감된 구글 폼을 다시 활성화: {}", googleFormId);
+        }
+
+        // 모든 활성 구글 폼을 비활성화 (원자적 일괄 업데이트)
+        int deactivatedCount = googleFormRepository.deactivateAllActiveForms(FormStatus.ACTIVE, FormStatus.INACTIVE);
         log.info("기존 활성화된 구글 폼 {}개 비활성화 완료", deactivatedCount);
 
+        // 이전 상태 저장
+        FormStatus previousStatus = targetGoogleForm.getStatus();
+        
         // 대상 구글 폼 활성화
         targetGoogleForm.activate();
         GoogleForm savedGoogleForm = googleFormRepository.save(targetGoogleForm);
+        
+        // 활성화 이벤트 발행
+        eventPublisher.publishActivated(savedGoogleForm);
+        eventPublisher.publishStatusChanged(savedGoogleForm, previousStatus, FormStatus.ACTIVE, "폼 활성화");
         
         log.info("구글 폼 활성화 완료: {}", googleFormId);
         return savedGoogleForm;
@@ -114,6 +141,24 @@ public class GoogleFormService {
         googleForm.deactivate();
 
         return googleFormRepository.save(googleForm);
+    }
+
+    // 구글 폼 마감 (직접 API를 통해서만 가능)
+    @Transactional
+    public GoogleForm closeGoogleForm(Long googleFormId) {
+        log.info("구글 폼 마감: {}", googleFormId);
+
+        GoogleForm googleForm = getGoogleFormByIdRequired(googleFormId);
+        FormStatus previousStatus = googleForm.getStatus();
+        
+        googleForm.close();
+        GoogleForm savedGoogleForm = googleFormRepository.save(googleForm);
+
+        // 마감 이벤트 발행
+        eventPublisher.publishClosed(savedGoogleForm);
+        eventPublisher.publishStatusChanged(savedGoogleForm, previousStatus, FormStatus.CLOSED, "폼 마감");
+
+        return savedGoogleForm;
     }
 
     // 구글 폼 URL 업데이트
@@ -150,10 +195,11 @@ public class GoogleFormService {
 
         GoogleForm googleForm = getGoogleFormByIdRequired(googleFormId);
 
-        // 활성화된 폼인지 확인
-        if (Boolean.TRUE.equals(googleForm.getIsActive())) {
-            log.warn("활성화된 구글 폼 삭제 시도: {}", googleFormId);
-            throw new RecruitException(HttpStatus.BAD_REQUEST, ErrorCode.GOOGLE_FORM_ACTIVE_CANNOT_DELETE);
+        // 삭제 가능 여부 확인 (활성 또는 마감 상태는 삭제 불가)
+        if (!googleForm.canBeDeleted()) {
+            log.warn("삭제 불가능한 구글 폼 삭제 시도 - ID: {}, Status: {}", googleFormId, googleForm.getStatus());
+            throw new RecruitException(HttpStatus.BAD_REQUEST, ErrorCode.GOOGLE_FORM_ACTIVE_CANNOT_DELETE, 
+                "현재 상태(" + googleForm.getStatus().getDescription() + ")에서는 삭제할 수 없습니다");
         }
 
         googleFormRepository.delete(googleForm);
@@ -167,7 +213,7 @@ public class GoogleFormService {
 
     // 특정 기수의 활성화된 구글 폼 조회
     public Optional<GoogleForm> getActiveGoogleFormByGeneration(Integer generation) {
-        return googleFormRepository.findByGenerationAndIsActiveTrue(generation);
+        return googleFormRepository.findByGenerationAndStatus(generation, FormStatus.ACTIVE);
     }
 
     // 특정 기수의 활성화된 구글 폼 조회 (필수)
@@ -179,7 +225,7 @@ public class GoogleFormService {
 
     // 현재 활성화된 기수 조회
     public Optional<Integer> getCurrentActiveGeneration() {
-        return googleFormRepository.findCurrentActiveGeneration();
+        return googleFormRepository.findGenerationByStatus(FormStatus.ACTIVE);
     }
 
     // 현재 활성화된 기수 조회 (필수)

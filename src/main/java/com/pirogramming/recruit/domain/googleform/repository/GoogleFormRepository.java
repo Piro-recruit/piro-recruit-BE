@@ -1,6 +1,7 @@
 package com.pirogramming.recruit.domain.googleform.repository;
 
 import com.pirogramming.recruit.domain.googleform.entity.GoogleForm;
+import com.pirogramming.recruit.domain.googleform.entity.FormStatus;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
@@ -17,10 +18,10 @@ public interface GoogleFormRepository extends JpaRepository<GoogleForm, Long> {
     Optional<GoogleForm> findByFormId(String formId);
 
     // 현재 활성화된 구글 폼 조회
-    Optional<GoogleForm> findByIsActiveTrue();
+    Optional<GoogleForm> findByStatus(FormStatus status);
 
     // 활성화된 모든 구글 폼 조회
-    List<GoogleForm> findByIsActiveTrueOrderByCreatedAtDesc();
+    List<GoogleForm> findByStatusOrderByCreatedAtDesc(FormStatus status);
 
     // 최신 구글 폼 조회 (생성일 기준)
     @Query("SELECT g FROM GoogleForm g ORDER BY g.createdAt DESC")
@@ -35,19 +36,19 @@ public interface GoogleFormRepository extends JpaRepository<GoogleForm, Long> {
     // 폼 ID 존재 여부 확인
     boolean existsByFormId(String formId);
 
-    // 활성화된 구글 폼 존재 여부 확인
-    boolean existsByIsActiveTrue();
+    // 특정 상태의 구글 폼 존재 여부 확인
+    boolean existsByStatus(FormStatus status);
 
-    // 모든 구글 폼을 비활성화 (원자적 연산)
+    // 모든 활성 구글 폼을 비활성화 (원자적 연산)
     @Modifying
-    @Query("UPDATE GoogleForm g SET g.isActive = false WHERE g.isActive = true")
-    int deactivateAllGoogleForms();
+    @Query("UPDATE GoogleForm g SET g.status = :inactiveStatus WHERE g.status = :activeStatus")
+    int deactivateAllActiveForms(@Param("activeStatus") FormStatus activeStatus, @Param("inactiveStatus") FormStatus inactiveStatus);
 
     // 특정 기수의 구글 폼 조회
     List<GoogleForm> findByGenerationOrderByCreatedAtDesc(Integer generation);
 
-    // 특정 기수의 활성화된 구글 폼 조회
-    Optional<GoogleForm> findByGenerationAndIsActiveTrue(Integer generation);
+    // 특정 기수의 특정 상태 구글 폼 조회
+    Optional<GoogleForm> findByGenerationAndStatus(Integer generation, FormStatus status);
 
     // 특정 기수에 구글 폼이 존재하는지 확인
     boolean existsByGeneration(Integer generation);
@@ -56,8 +57,8 @@ public interface GoogleFormRepository extends JpaRepository<GoogleForm, Long> {
     long countByGeneration(Integer generation);
 
     // 현재 활성화된 구글 폼의 기수 조회
-    @Query("SELECT g.generation FROM GoogleForm g WHERE g.isActive = true")
-    Optional<Integer> findCurrentActiveGeneration();
+    @Query("SELECT g.generation FROM GoogleForm g WHERE g.status = :status")
+    Optional<Integer> findGenerationByStatus(@Param("status") FormStatus status);
 
     // 가장 최신 기수 조회
     @Query("SELECT MAX(g.generation) FROM GoogleForm g")

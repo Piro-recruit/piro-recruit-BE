@@ -21,6 +21,7 @@ import org.springframework.web.bind.annotation.RestController;
 import com.pirogramming.recruit.domain.googleform.dto.GoogleFormRequest;
 import com.pirogramming.recruit.domain.googleform.dto.GoogleFormResponse;
 import com.pirogramming.recruit.domain.googleform.entity.GoogleForm;
+import com.pirogramming.recruit.domain.googleform.entity.FormStatus;
 import com.pirogramming.recruit.domain.googleform.service.GoogleFormService;
 import com.pirogramming.recruit.domain.webhook.entity.WebhookApplication;
 import com.pirogramming.recruit.domain.webhook.service.WebhookApplicationService;
@@ -217,6 +218,23 @@ public class GoogleFormController {
         );
     }
 
+    // 구글 폼 마감
+    @PutMapping("/{id}/close")
+    @RequireRoot
+    @Operation(summary = "구글 폼 마감", description = "특정 구글 폼을 마감 상태로 변경합니다.")
+    public ResponseEntity<ApiRes<GoogleFormResponse>> closeGoogleForm(
+            @Parameter(description = "구글 폼 ID") @PathVariable Long id) {
+
+        log.info("구글 폼 마감 요청 - ID: {}", id);
+
+        GoogleForm googleForm = googleFormService.closeGoogleForm(id);
+        GoogleFormResponse response = buildResponseWithApplicationCount(googleForm);
+
+        return ResponseEntity.ok(
+                ApiRes.success(response, "구글 폼이 마감되었습니다.")
+        );
+    }
+
     // 구글 폼 URL 업데이트
     @PutMapping("/{id}/form-url")
     @RequireRoot
@@ -286,7 +304,7 @@ public class GoogleFormController {
                 "formTitle", googleForm.getTitle(),
                 "totalApplications", totalApplications,
                 "statusStatistics", statusStatistics,
-                "isActive", googleForm.getIsActive(),
+                "status", googleForm.getStatus(),
                 "createdAt", googleForm.getCreatedAt()
         );
 
