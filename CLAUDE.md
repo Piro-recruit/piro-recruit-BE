@@ -41,6 +41,12 @@ docker compose down -v
 
 # Run specific test class
 ./gradlew test --tests "com.pirogramming.recruit.domain.admin.AdminServiceTest"
+
+# Run tests with coverage
+./gradlew test jacocoTestReport
+
+# Continuous testing (watch mode)
+./gradlew -t test
 ```
 
 ## Project Architecture
@@ -73,12 +79,17 @@ com.pirogramming.recruit
 
 ### Key Technologies
 - **Framework**: Spring Boot 3.5.3 with Spring Security
-- **Database**: PostgreSQL with Spring Data JPA
-- **Authentication**: JWT with custom security configuration
-- **Documentation**: Swagger/OpenAPI 3
+- **Database**: PostgreSQL 15 with Spring Data JPA
+- **Authentication**: JWT with custom security configuration and refresh tokens
+- **Documentation**: Swagger/OpenAPI 3 (SpringDoc)
 - **Build Tool**: Gradle 8.14.2
 - **Java Version**: 21
 - **Container**: Docker with multi-stage build
+- **Email**: Spring Mail with Gmail SMTP
+- **File Processing**: Apache POI (Excel), Apache Commons CSV
+- **Markdown**: CommonMark with GFM tables extension
+- **AI Integration**: OpenAI API with WebClient
+- **JSON Processing**: Jackson with PostgreSQL JSONB support
 
 ### Database Configuration
 - Uses PostgreSQL 15 in Docker
@@ -162,12 +173,13 @@ fix auth: resolve authentication error on login
 ## Required Environment Variables
 The application requires the following environment variables in `.env` file:
 - `DB_USERNAME`, `DB_PASSWORD`: PostgreSQL database credentials
-- `JWT_SECRET`: JWT token signing secret
+- `JWT_SECRET`: JWT token signing secret (must be at least 256 bits for HS256)
 - `ROOT_ADMIN_LOGIN_CODE`: Root admin authentication code
 - `OPENAI_API_KEY`: OpenAI API key for AI summary features
 - `WEBHOOK_API_KEY`: API key for webhook authentication
 - `STMP_USER_ID`, `STMP_PASSWORD`: Gmail SMTP credentials for email service
 - `ADMIN_TEST_EMAIL`: Admin test email address (optional, defaults to rlarbdlf222@naver.com)
+- `SPRING_PROFILES_ACTIVE`: Environment profile (dev/prod, defaults to dev)
 
 ## Development Guidelines
 - ALWAYS prefer editing existing files over creating new ones
