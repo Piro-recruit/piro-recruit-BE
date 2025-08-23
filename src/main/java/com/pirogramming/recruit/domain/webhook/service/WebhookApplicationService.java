@@ -298,14 +298,15 @@ public class WebhookApplicationService {
         return saved;
     }
 
-    // 점수 상위 N명 합격 상태 변경
+
+    // 구글 폼별 점수 상위 N명 합격 상태 변경
     @Transactional
-    public List<WebhookApplication> updatePassStatusForTopN(Integer topN, WebhookApplication.PassStatus passStatus) {
+    public List<WebhookApplication> updatePassStatusForTopNByGoogleForm(Long googleFormId, Integer topN, WebhookApplication.PassStatus passStatus) {
         Pageable pageable = PageRequest.of(0, topN);
-        List<WebhookApplication> topApplications = webhookApplicationRepository.findTopByAverageScore(pageable);
+        List<WebhookApplication> topApplications = webhookApplicationRepository.findTopByAverageScoreAndGoogleForm(googleFormId, pageable);
         
         if (topApplications.isEmpty()) {
-            log.warn("평가된 지원서가 없습니다.");
+            log.warn("구글 폼 {}에 평가된 지원서가 없습니다.", googleFormId);
             return List.of();
         }
 
@@ -319,7 +320,33 @@ public class WebhookApplicationService {
         }
 
         List<WebhookApplication> saved = webhookApplicationRepository.saveAll(topApplications);
-        log.info("점수 상위 {} 명 합격 상태 변경: {} -> {}", topN, topApplications.size(), passStatus);
+        log.info("구글 폼 {} 점수 상위 {} 명 합격 상태 변경: {} -> {}", googleFormId, topN, topApplications.size(), passStatus);
+
+        return saved;
+    }
+
+    // 구글 폼별 점수 하위 N명 합격 상태 변경
+    @Transactional
+    public List<WebhookApplication> updatePassStatusForBottomNByGoogleForm(Long googleFormId, Integer bottomN, WebhookApplication.PassStatus passStatus) {
+        Pageable pageable = PageRequest.of(0, bottomN);
+        List<WebhookApplication> bottomApplications = webhookApplicationRepository.findBottomByAverageScoreAndGoogleForm(googleFormId, pageable);
+        
+        if (bottomApplications.isEmpty()) {
+            log.warn("구글 폼 {}에 평가된 지원서가 없습니다.", googleFormId);
+            return List.of();
+        }
+
+        for (WebhookApplication app : bottomApplications) {
+            switch (passStatus) {
+                case FIRST_PASS -> app.markAsFirstPass();
+                case FINAL_PASS -> app.markAsFinalPass();
+                case FAILED -> app.markAsPassFailed();
+                case PENDING -> app.resetPassStatus();
+            }
+        }
+
+        List<WebhookApplication> saved = webhookApplicationRepository.saveAll(bottomApplications);
+        log.info("구글 폼 {} 점수 하위 {} 명 합격 상태 변경: {} -> {}", googleFormId, bottomN, bottomApplications.size(), passStatus);
 
         return saved;
     }
