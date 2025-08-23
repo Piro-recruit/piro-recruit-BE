@@ -3,6 +3,7 @@ package com.pirogramming.recruit.domain.googleform.dto;
 import java.time.LocalDateTime;
 
 import com.pirogramming.recruit.domain.googleform.entity.GoogleForm;
+import com.pirogramming.recruit.domain.googleform.entity.FormStatus;
 
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -20,7 +21,7 @@ public class GoogleFormResponse {
     private String title;
     private String formUrl;
     private String sheetUrl;
-    private Boolean isActive;
+    private FormStatus status;
     private String description;
     private Integer generation;
     private LocalDateTime recruitingStartDate;
@@ -41,7 +42,7 @@ public class GoogleFormResponse {
                 .title(entity.getTitle())
                 .formUrl(entity.getFormUrl())
                 .sheetUrl(entity.getSheetUrl())
-                .isActive(entity.getIsActive())
+                .status(entity.getStatus())
                 .description(entity.getDescription())
                 .recruitingStartDate(entity.getRecruitingStartDate())
                 .recruitingEndDate(entity.getRecruitingEndDate())
