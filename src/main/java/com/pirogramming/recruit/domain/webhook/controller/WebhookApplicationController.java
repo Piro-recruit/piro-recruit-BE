@@ -13,6 +13,8 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
+import com.pirogramming.recruit.domain.webhook.dto.BatchPassStatusUpdateRequest;
+import com.pirogramming.recruit.domain.webhook.dto.BatchPassStatusUpdateResponse;
 import com.pirogramming.recruit.domain.webhook.dto.WebhookApplicationRequest;
 import com.pirogramming.recruit.domain.webhook.dto.WebhookApplicationResponse;
 import com.pirogramming.recruit.domain.webhook.entity.WebhookApplication;
@@ -332,23 +334,73 @@ public class WebhookApplicationController {
         );
     }
 
-    // 일괄 지원서 상태 변경 (점수 상위 N명)
-    @PostMapping("/bulk-status")
+
+    // 구글 폼별 일괄 지원서 상태 변경 (점수 상위 N명)
+    @PostMapping("/google-form/{googleFormId}/bulk-status")
     @RequireRoot
-    @Operation(summary = "일괄 지원서 상태 변경", description = "점수 상위 N명의 지원서 상태를 일괄 변경합니다. (root 권한 필요)")
-    public ResponseEntity<ApiRes<List<WebhookApplicationResponse>>> updatePassStatusBulk(
+    @Operation(summary = "구글 폼별 일괄 지원서 상태 변경 (상위)", description = "특정 구글 폼의 점수 상위 N명의 지원서 상태를 일괄 변경합니다. (root 권한 필요)")
+    public ResponseEntity<ApiRes<List<WebhookApplicationResponse>>> updatePassStatusBulkByGoogleForm(
+            @Parameter(description = "구글 폼 ID") @PathVariable Long googleFormId,
             @Parameter(description = "변경할 상위 인원 수") @RequestParam Integer topN,
             @Parameter(description = "변경할 합격 상태 (PENDING, FIRST_PASS, FINAL_PASS, FAILED)") 
             @RequestParam WebhookApplication.PassStatus passStatus) {
 
-        List<WebhookApplication> updatedApplications = webhookApplicationService.updatePassStatusForTopN(topN, passStatus);
+        List<WebhookApplication> updatedApplications = webhookApplicationService.updatePassStatusForTopNByGoogleForm(googleFormId, topN, passStatus);
 
         return ResponseEntity.ok(
                 ApiRes.success(
                         updatedApplications.stream()
                                 .map(WebhookApplicationResponse::from)
                                 .collect(java.util.stream.Collectors.toList()),
-                        "상위 " + topN + "명의 지원서 상태가 " + passStatus + "로 변경되었습니다.")
+                        "구글 폼 " + googleFormId + "의 상위 " + topN + "명의 지원서 상태가 " + passStatus + "로 변경되었습니다.")
+        );
+    }
+
+    // 구글 폼별 일괄 지원서 상태 변경 (점수 하위 N명)
+    @PostMapping("/google-form/{googleFormId}/bulk-status-bottom")
+    @RequireRoot
+    @Operation(summary = "구글 폼별 일괄 지원서 상태 변경 (하위)", description = "특정 구글 폼의 점수 하위 N명의 지원서 상태를 일괄 변경합니다. (root 권한 필요)")
+    public ResponseEntity<ApiRes<List<WebhookApplicationResponse>>> updatePassStatusBulkBottomByGoogleForm(
+            @Parameter(description = "구글 폼 ID") @PathVariable Long googleFormId,
+            @Parameter(description = "변경할 하위 인원 수") @RequestParam Integer bottomN,
+            @Parameter(description = "변경할 합격 상태 (PENDING, FIRST_PASS, FINAL_PASS, FAILED)") 
+            @RequestParam WebhookApplication.PassStatus passStatus) {
+
+        List<WebhookApplication> updatedApplications = webhookApplicationService.updatePassStatusForBottomNByGoogleForm(googleFormId, bottomN, passStatus);
+
+        return ResponseEntity.ok(
+                ApiRes.success(
+                        updatedApplications.stream()
+                                .map(WebhookApplicationResponse::from)
+                                .collect(java.util.stream.Collectors.toList()),
+                        "구글 폼 " + googleFormId + "의 하위 " + bottomN + "명의 지원서 상태가 " + passStatus + "로 변경되었습니다.")
+        );
+    }
+
+    // 일괄 지원서 상태 변경 (지정된 ID 목록)
+    @PostMapping("/batch-status")
+    @RequireRoot
+    @Operation(summary = "지정된 지원서 일괄 상태 변경", description = "지정된 ID 목록의 지원서 상태를 일괄 변경합니다. (root 권한 필요)")
+    public ResponseEntity<ApiRes<BatchPassStatusUpdateResponse>> updatePassStatusBatch(
+            @Valid @RequestBody BatchPassStatusUpdateRequest request) {
+
+        List<WebhookApplication> updatedApplications = webhookApplicationService.updatePassStatusAll(
+                request.getApplicationIds(), 
+                request.getPassStatus()
+        );
+
+        List<WebhookApplicationResponse> responses = updatedApplications.stream()
+                .map(WebhookApplicationResponse::from)
+                .collect(java.util.stream.Collectors.toList());
+
+        BatchPassStatusUpdateResponse response = BatchPassStatusUpdateResponse.of(
+                responses, 
+                request.getPassStatus().toString()
+        );
+
+        return ResponseEntity.ok(
+                ApiRes.success(response, 
+                        updatedApplications.size() + "개 지원서의 상태가 " + request.getPassStatus() + "로 변경되었습니다.")
         );
     }
 
