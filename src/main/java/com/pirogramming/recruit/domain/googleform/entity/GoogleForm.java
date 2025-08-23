@@ -35,8 +35,9 @@ public class GoogleForm extends BaseTimeEntity {
     @Column(length = 1000)
     private String sheetUrl; // 연결된 구글 시트 URL
 
+    @Enumerated(EnumType.STRING)
     @Column(nullable = false)
-    private Boolean isActive = false; // 현재 사용 중인 폼인지
+    private FormStatus status = FormStatus.INACTIVE; // 폼 상태 (활성/비활성/마감)
 
     @Column(columnDefinition = "TEXT")
     private String description; // 폼 설명
@@ -65,17 +66,79 @@ public class GoogleForm extends BaseTimeEntity {
         this.recruitingStartDate = recruitingStartDate;
         this.recruitingEndDate = recruitingEndDate;
         this.generation = generation;
-        this.isActive = false;
+        this.status = FormStatus.INACTIVE;
     }
 
     // 폼 활성화 (기존 활성화된 것은 비활성화)
     public void activate() {
-        this.isActive = true;
+        changeStatus(FormStatus.ACTIVE, "폼 활성화");
     }
 
     // 폼 비활성화
     public void deactivate() {
-        this.isActive = false;
+        changeStatus(FormStatus.INACTIVE, "폼 비활성화");
+    }
+
+    // 폼 마감 (직접 API를 통해서만 가능)
+    public void close() {
+        changeStatus(FormStatus.CLOSED, "폼 마감");
+    }
+
+    // 상태 변경 (검증 포함)
+    private void changeStatus(FormStatus newStatus, String reason) {
+        if (this.status != null) {
+            this.status.validateTransition(newStatus, reason);
+        }
+        this.status = newStatus;
+    }
+
+    // 수동 상태 변경 (관리자용)
+    public void changeStatusManually(FormStatus newStatus, String reason) {
+        changeStatus(newStatus, "관리자 수동 변경: " + reason);
+    }
+
+    // 삭제 가능 여부 확인
+    public boolean canBeDeleted() {
+        return this.status == FormStatus.INACTIVE;
+    }
+
+    // 활성화 가능 여부 검증
+    public void validateCanActivate() {
+        if (this.formUrl == null || this.formUrl.trim().isEmpty()) {
+            throw new IllegalStateException("폼 URL이 설정되지 않은 구글 폼은 활성화할 수 없습니다");
+        }
+        
+        if (this.generation == null || this.generation <= 0) {
+            throw new IllegalStateException("유효한 기수가 설정되지 않은 구글 폼은 활성화할 수 없습니다");
+        }
+        
+        if (this.title == null || this.title.trim().isEmpty()) {
+            throw new IllegalStateException("제목이 설정되지 않은 구글 폼은 활성화할 수 없습니다");
+        }
+    }
+
+    // 리쿠르팅 날짜 업데이트 (검증 포함)
+    public void updateRecruitingDates(LocalDateTime start, LocalDateTime end) {
+        if (start != null && end != null && start.isAfter(end)) {
+            throw new IllegalArgumentException("리쿠르팅 시작일은 종료일보다 빨라야 합니다");
+        }
+        
+        if (start != null && start.isBefore(LocalDateTime.now().minusDays(365))) {
+            throw new IllegalArgumentException("리쿠르팅 시작일은 1년 이전으로 설정할 수 없습니다");
+        }
+        
+        this.recruitingStartDate = start;
+        this.recruitingEndDate = end;
+    }
+
+    // 현재 상태가 활성인지 확인
+    public boolean isActive() {
+        return this.status == FormStatus.ACTIVE;
+    }
+
+    // 현재 상태가 마감인지 확인  
+    public boolean isClosed() {
+        return this.status == FormStatus.CLOSED;
     }
 
     // 폼 URL 업데이트
@@ -109,4 +172,5 @@ public class GoogleForm extends BaseTimeEntity {
             throw new IllegalArgumentException(fieldName + "은 올바른 URL 형식이어야 합니다");
         }
     }
+
 }
