@@ -1,13 +1,18 @@
 package com.pirogramming.recruit.domain.mail.service;
 
+import java.nio.charset.StandardCharsets;
 import java.util.Arrays;
 import java.util.List;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.Executor;
 
+import lombok.Value;
 import org.commonmark.Extension;
 import org.commonmark.ext.gfm.tables.TablesExtension;
 import org.commonmark.node.Node;
 import org.commonmark.parser.Parser;
 import org.commonmark.renderer.html.HtmlRenderer;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.mail.javamail.JavaMailSender;
 import org.springframework.mail.javamail.MimeMessageHelper;
 import org.springframework.stereotype.Service;
@@ -20,213 +25,243 @@ import jakarta.mail.MessagingException;
 import jakarta.mail.internet.MimeMessage;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import software.amazon.awssdk.core.exception.SdkException;
+import software.amazon.awssdk.services.ses.SesClient;
+import software.amazon.awssdk.services.ses.model.*;
 
 @Service
 @Slf4j
 @RequiredArgsConstructor
 public class MailService {
 
-	private final JavaMailSender javaMailSender;
+	private final SesClient sesClient;
 	private final MailSubscriberRepository mailSubscriberRepository;
 
+	@Qualifier("mailExecutor")
+	private final Executor mailExecutor;
+
+	@Value("${aws.ses.from-email}")
+	private String fromEmail;
+
+	@Value("${aws.ses.max-send-rate}")
+	private int maxSendRate;
+
+	@Value("${aws.ses.batch-size}")
+	private int batchSize;
+
+	@Value("${aws.ses.retry-count}")
+	private int retryCount;
+
+	// 단일 메일 전송
 	public void sendSingleMail(SingleMailRequestDto mailRequest) {
 		try {
 			String htmlContent = convertMarkdownToHtml(mailRequest.getContent());
-			sendHtmlMail(List.of(mailRequest.getRecipientEmail()), mailRequest.getSubject(), htmlContent);
+			sendEmailWithRetry(
+					List.of(mailRequest.getRecipientEmail()),
+					mailRequest.getSubject(),
+					htmlContent,
+					1
+			);
 			log.info("개별 메일 발송 성공 - 수신자: {}", mailRequest.getRecipientEmail());
 		} catch (Exception e) {
-			log.error("개별 메일 발송 실패 - 수신자: {}, 오류: {}", mailRequest.getRecipientEmail(), e.getMessage(), e);
+			log.error("개별 메일 발송 실패 - 수신자: {}, 오류: {}",
+					mailRequest.getRecipientEmail(), e.getMessage(), e);
 			throw new RuntimeException("메일 발송에 실패했습니다: " + e.getMessage(), e);
 		}
 	}
 
+	// 일괄 메일 전송 (성능 최적화)
 	public void sendBulkMail(BulkMailRequestDto mailRequest) {
 		List<String> recipients = getAllSubscribedEmails();
-		
+
 		if (recipients.isEmpty()) {
 			throw new IllegalArgumentException("알림을 신청한 사용자가 없습니다");
 		}
 
 		try {
 			String htmlContent = convertMarkdownToHtml(mailRequest.getContent());
-			sendHtmlMail(recipients, mailRequest.getSubject(), htmlContent);
-			log.info("일괄 메일 발송 성공 - 수신자 수: {}", recipients.size());
+
+			log.info("일괄 메일 발송 시작 - 총 수신자: {} 명", recipients.size());
+
+			// 200개가 넘으면 배치로 나누어서 처리
+			if (recipients.size() > batchSize) {
+				sendBulkEmailInBatches(recipients, mailRequest.getSubject(), htmlContent);
+			} else {
+				sendEmailWithRetry(recipients, mailRequest.getSubject(), htmlContent, 1);
+			}
+
+			log.info("일괄 메일 발송 완료 - 수신자 수: {}", recipients.size());
 		} catch (Exception e) {
-			log.error("일괄 메일 발송 실패 - 수신자 수: {}, 오류: {}", recipients.size(), e.getMessage(), e);
+			log.error("일괄 메일 발송 실패 - 수신자 수: {}, 오류: {}",
+					recipients.size(), e.getMessage(), e);
 			throw new RuntimeException("메일 발송에 실패했습니다: " + e.getMessage(), e);
 		}
 	}
 
-	private void sendHtmlMail(List<String> recipients, String subject, String content) throws MessagingException {
-		MimeMessage mimeMessage = javaMailSender.createMimeMessage();
-		MimeMessageHelper helper = new MimeMessageHelper(mimeMessage, false, "UTF-8");
-		
-		helper.setTo(recipients.toArray(new String[0]));
-		helper.setSubject(subject);
-		helper.setText(createHtmlTemplate(subject, content), true); // HTML로 전송
-		
-		javaMailSender.send(mimeMessage);
+	// 배치로 나누어서 메일 전송 (비동기 처리)
+	private void sendBulkEmailInBatches(List<String> recipients, String subject, String htmlContent) {
+		int totalRecipients = recipients.size();
+		CompletableFuture<Void>[] futures = new CompletableFuture[0];
+
+		// 배치 단위로 나누어 처리
+		for (int i = 0; i < totalRecipients; i += batchSize) {
+			int endIndex = Math.min(i + batchSize, totalRecipients);
+			List<String> batch = recipients.subList(i, endIndex);
+			int batchNumber = (i / batchSize) + 1;
+
+			CompletableFuture<Void> future = CompletableFuture.runAsync(() -> {
+				try {
+					// AWS SES 전송률 제한을 고려한 지연
+					long delay = calculateDelay(batch.size());
+					if (delay > 0) {
+						Thread.sleep(delay);
+					}
+
+					sendEmailWithRetry(batch, subject, htmlContent, 1);
+					log.info("배치 {} 전송 완료 - {} 건", batchNumber, batch.size());
+				} catch (Exception e) {
+					log.error("배치 {} 전송 실패 - {} 건, 오류: {}",
+							batchNumber, batch.size(), e.getMessage(), e);
+					throw new RuntimeException(e);
+				}
+			}, mailExecutor);
+
+			futures = Arrays.copyOf(futures, futures.length + 1);
+			futures[futures.length - 1] = future;
+		}
+
+		// 모든 배치 작업 완료 대기
+		CompletableFuture.allOf(futures).join();
 	}
 
-	private String createHtmlTemplate(String subject, String content) {
-		return """
-			<!DOCTYPE html>
-			<html lang="ko">
-			<head>
-				<meta charset="UTF-8">
-				<meta name="viewport" content="width=device-width, initial-scale=1.0">
-				<title>%s</title>
-				<style>
-					body {
-						font-family: 'Arial', sans-serif;
-						margin: 0;
-						padding: 0;
-						background-color: #f4f4f4;
-						color: #333;
-					}
-					.container {
-						max-width: 600px;
-						margin: 20px auto;
-						background-color: #ffffff;
-						border-radius: 10px;
-						box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
-						overflow: hidden;
-					}
-					.header {
-						background: linear-gradient(135deg, #667eea 0%%, #764ba2 100%%);
-						color: white;
-						padding: 30px;
-						text-align: center;
-					}
-					.header h1 {
-						margin: 0;
-						font-size: 28px;
-						font-weight: 300;
-					}
-					.content {
-						padding: 40px 30px;
-						line-height: 1.6;
-					}
-					.content h2 {
-						color: #667eea;
-						border-bottom: 2px solid #f0f0f0;
-						padding-bottom: 10px;
-						margin-bottom: 20px;
-					}
-					.content p {
-						margin-bottom: 15px;
-						color: #555;
-					}
-					.content table {
-						width: 100%%;
-						border-collapse: collapse;
-						margin: 20px 0;
-						background-color: #fff;
-						box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-					}
-					.content th, .content td {
-						padding: 12px 15px;
-						text-align: left;
-						border-bottom: 1px solid #e9ecef;
-					}
-					.content th {
-						background: linear-gradient(135deg, #667eea 0%%, #764ba2 100%%);
-						color: white;
-						font-weight: 600;
-						border-bottom: 2px solid #5a67d8;
-					}
-					.content tr:hover {
-						background-color: #f8f9fa;
-					}
-					.content code {
-						background-color: #f1f3f4;
-						color: #d73a49;
-						padding: 2px 4px;
-						border-radius: 3px;
-						font-family: 'Courier New', monospace;
-						font-size: 0.9em;
-					}
-					.content pre {
-						background-color: #f6f8fa;
-						border: 1px solid #e1e4e8;
-						border-radius: 6px;
-						padding: 16px;
-						overflow-x: auto;
-						margin: 20px 0;
-					}
-					.content pre code {
-						background-color: transparent;
-						color: #24292e;
-						padding: 0;
-					}
-					.footer {
-						background-color: #f8f9fa;
-						padding: 20px 30px;
-						text-align: center;
-						border-top: 1px solid #e9ecef;
-					}
-					.footer p {
-						margin: 0;
-						color: #6c757d;
-						font-size: 14px;
-					}
-					.highlight {
-						background-color: #fff3cd;
-						border-left: 4px solid #ffc107;
-						padding: 15px;
-						margin: 20px 0;
-					}
-					.button {
-						display: inline-block;
-						padding: 12px 30px;
-						background: linear-gradient(135deg, #667eea 0%%, #764ba2 100%%);
-						color: white;
-						text-decoration: none;
-						border-radius: 25px;
-						margin: 20px 0;
-						transition: transform 0.2s;
-					}
-					.button:hover {
-						transform: translateY(-2px);
-					}
-				</style>
-			</head>
-			<body>
-				<div class="container">
-					<div class="header">
-						<h1>📧 PIRO RECRUIT</h1>
-						<p>피로그래밍 리크루팅 시스템</p>
-					</div>
-					<div class="content">
-						<h2>%s</h2>
-						<div>%s</div>
-					</div>
-					<div class="footer">
-						<p>© 2025 PIRO Programming. All rights reserved.</p>
-						<p>이 메일은 PIRO 리크루팅 시스템에서 자동으로 발송되었습니다.</p>
-					</div>
-				</div>예
-			</body>
-			</html>
-			""".formatted(subject, subject, content);
+	// 재시도 로직을 포함한 메일 전송
+	private void sendEmailWithRetry(List<String> recipients, String subject, String htmlContent, int attempt) {
+		try {
+			SendEmailRequest emailRequest = SendEmailRequest.builder()
+					.source(fromEmail)
+					.destination(Destination.builder().toAddresses(recipients).build())
+					.message(Message.builder()
+							.subject(Content.builder().data(subject).charset(StandardCharsets.UTF_8.name()).build())
+							.body(Body.builder()
+									.html(Content.builder()
+											.data(createHtmlTemplate(subject, htmlContent))
+											.charset(StandardCharsets.UTF_8.name())
+											.build())
+									.build())
+							.build())
+					.build();
+
+			SendEmailResponse response = sesClient.sendEmail(emailRequest);
+			log.debug("SES 메일 전송 성공 - MessageId: {}, 수신자 수: {}",
+					response.messageId(), recipients.size());
+
+		} catch (SdkException e) {
+			if (attempt < retryCount) {
+				log.warn("메일 전송 실패 (재시도 {}/{}): {}", attempt, retryCount, e.getMessage());
+				try {
+					Thread.sleep(1000 * attempt); // 지수백오프
+					sendEmailWithRetry(recipients, subject, htmlContent, attempt + 1);
+				} catch (InterruptedException ie) {
+					Thread.currentThread().interrupt();
+					throw new RuntimeException("메일 전송 중 중단됨", ie);
+				}
+			} else {
+				log.error("메일 전송 최종 실패 - 재시도 횟수 초과: {}", e.getMessage(), e);
+				throw new RuntimeException("메일 전송에 실패했습니다: " + e.getMessage(), e);
+			}
+		}
 	}
 
+	// AWS SES 전송률 제한을 고려한 지연 시간 계산
+	private long calculateDelay(int emailCount) {
+		// maxSendRate는 초당 전송 가능한 메일 수
+		if (emailCount <= maxSendRate) {
+			return 0;
+		}
+
+		// 전송할 메일 수가 전송률을 초과하면 지연 시간 계산
+		return (long) ((emailCount / (double) maxSendRate) * 1000);
+	}
+
+	// 구독자 이메일 목록 조회
 	private List<String> getAllSubscribedEmails() {
-		return mailSubscriberRepository.findAll()
-				.stream()
-				.map(subscriber -> subscriber.getEmail())
-				.toList();
+		return mailSubscriberRepository.findAllEmails();
 	}
 
+	// Markdown을 HTML로 변환
 	private String convertMarkdownToHtml(String markdown) {
 		List<Extension> extensions = Arrays.asList(TablesExtension.create());
-		Parser parser = Parser.builder()
-			.extensions(extensions)
-			.build();
+		Parser parser = Parser.builder().extensions(extensions).build();
 		Node document = parser.parse(markdown);
-		HtmlRenderer renderer = HtmlRenderer.builder()
-			.extensions(extensions)
-			.build();
+		HtmlRenderer renderer = HtmlRenderer.builder().extensions(extensions).build();
 		return renderer.render(document);
+	}
+
+	// HTML 템플릿 생성
+	private String createHtmlTemplate(String subject, String content) {
+		return String.format("""
+            <!DOCTYPE html>
+            <html lang="ko">
+            <head>
+                <meta charset="UTF-8">
+                <meta name="viewport" content="width=device-width, initial-scale=1.0">
+                <title>%s</title>
+                <style>
+                    body {
+                        font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+                        line-height: 1.6;
+                        color: #333;
+                        max-width: 600px;
+                        margin: 0 auto;
+                        padding: 20px;
+                        background-color: #f9f9f9;
+                    }
+                    .container {
+                        background: white;
+                        padding: 30px;
+                        border-radius: 8px;
+                        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+                    }
+                    .header {
+                        text-align: center;
+                        margin-bottom: 30px;
+                        padding-bottom: 20px;
+                        border-bottom: 2px solid #e9ecef;
+                    }
+                    .footer {
+                        margin-top: 30px;
+                        padding-top: 20px;
+                        border-top: 1px solid #e9ecef;
+                        font-size: 12px;
+                        color: #666;
+                        text-align: center;
+                    }
+                    .unsubscribe {
+                        margin-top: 10px;
+                    }
+                    .unsubscribe a {
+                        color: #666;
+                        text-decoration: none;
+                    }
+                </style>
+            </head>
+            <body>
+                <div class="container">
+                    <div class="header">
+                        <h1>피로그래밍</h1>
+                    </div>
+                    <div class="content">
+                        %s
+                    </div>
+                    <div class="footer">
+                        <p>이 메일은 피로그래밍 알림 서비스입니다.</p>
+                        <div class="unsubscribe">
+                            <a href="https://recruit.pirogramming.com/unsubscribe">구독 해지</a>
+                        </div>
+                    </div>
+                </div>
+            </body>
+            </html>
+            """, subject, content);
 	}
 }
