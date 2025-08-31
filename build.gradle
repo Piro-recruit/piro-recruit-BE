@@ -101,6 +101,10 @@ dependencies {
 	// Markdown 처리를 위한 라이브러리
 	implementation 'org.commonmark:commonmark:0.21.0'
 	implementation 'org.commonmark:commonmark-ext-gfm-tables:0.21.0'
+
+	// AWS SES
+	implementation 'software.amazon.awssdk:ses:2.20.+'
+	implementation 'software.amazon.awssdk:core:2.20.+'
 }
 
 tasks.named('test') {
